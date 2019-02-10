@@ -86,7 +86,7 @@
             console.log(response.result);
             
             // Now take first result and lets get its contents
-            var fileId = response.files[0].id;
+            var fileId = response.result.files[0].id;
             return gapi.client.request({
               'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
               'params': {
