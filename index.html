@@ -100,13 +100,17 @@
         .then(
           function(response) {
             console.log(response);
-            $("#file_contents").text(response.body);
+            $("#file_contents").html(textToHtml(response.body));
           },
           function(reason) {
             console.log('Error: ' + reason);
 //             console.log('Error: ' + reason.result.error.message);
           });
 
+    }
+    
+    function textToHtml(text) {
+      return text.replace('\n', '<br>');
     }
   </script>
 
