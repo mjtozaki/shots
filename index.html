@@ -10,6 +10,11 @@
     
     function gapi_loaded() {
       console.log('Loading gapi');
+      gapi.load('client:auth2', initClient);
+    }
+
+    function initClient() {
+      console.log('Loaded gapi');
       
       var good = true;
       var apiKey = url('?api_key');
@@ -35,47 +40,65 @@
         // clientId and scope are optional if auth is not required.
         'clientId': clientId,
         'scope': SCOPE,
-      }).then(function() {
-        var needToSignIn = true;
-        GoogleAuth = gapi.auth2.getAuthInstance();
-        if (GoogleAuth.isSignedIn.get()) {
-          var user = GoogleAuth.currentUser.get();
-          var isAuthorized = user.hasGrantedScopes(SCOPE);
-          if (!isAuthorized) {
-            console.log("Signed in and not authorized.");
-          } else {
-            needToSignIn = false;
-            console.log("Signed in and authorized!");
-          }
-        } else {
-          console.log("Not signed in.");
-        }
-        if (needToSignIn) {
-          return GoogleAuth.signIn({
-            'prompt': 'consent',
+      })
+        .then(
+          function() {
+            var needToSignIn = true;
+            GoogleAuth = gapi.auth2.getAuthInstance();
+            if (GoogleAuth.isSignedIn.get()) {
+              var user = GoogleAuth.currentUser.get();
+              var isAuthorized = user.hasGrantedScopes(SCOPE);
+              if (!isAuthorized) {
+                console.log("Signed in and not authorized.");
+              } else {
+                needToSignIn = false;
+                console.log("Signed in and authorized!");
+              }
+            } else {
+              console.log("Not signed in.");
+            }
+            if (needToSignIn) {
+              return GoogleAuth.signIn({
+                'prompt': 'consent',
+              });
+            }
+            return Promise.resolve("doesn't matter");
+          })
+        .then(
+          function() {
+            // 3. Initialize and make the API request.
+            console.log('Requesting files.list');
+            return gapi.client.request({
+              'path': 'https://www.googleapis.com/drive/v3/files',
+              'spaces': 'drive' /*,appDataFolder*/,
+              'q': "name contains '.shot'",
+            });
+          },
+          function(reason) {
+            console.log('Error: ' + reason);
+    //         console.log('Error: ' + reason.result.error.message);
+          })
+        .then(
+          function(response) {
+            // File listing
+            console.log(response.result);
+            
+            // Now take first result and lets get its contents
+            var fileId = response.files[0].id;
+            return gapi.client.request({
+              'path': 'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media&acknowledgeAbuse=true',
+            });
+          },
+          function(reason) {
+            console.log('Error: ' + reason.result.error.message);
+          })
+        .then(
+          function(response) {
+            $("#file_contents").text(response);
+          },
+          function(reason) {
+            console.log('Error: ' + reason.result.error.message);
           });
-        }
-        return Promise.resolve("doesn't matter");
-      }).then(function() {
-        // 3. Initialize and make the API request.
-//         return gapi.client.people.people.get({
-//           'resourceName': 'people/me',
-//           'requestMask.includeField': 'person.names'
-//         });
-        console.log('Requesting files.list');
-        return gapi.client.request({
-          'path': 'https://www.googleapis.com/drive/v3/files',
-          'spaces': 'drive' /*,appDataFolder*/,
-//           'path': 'https://people.googleapis.com/v1/people/me?requestMask.includeField=person.names',
-        });
-      }, function(reason) {
-        console.log('Error: ' + reason);
-//         console.log('Error: ' + reason.result.error.message);
-      }).then(function(response) {
-        console.log(response.result);
-      }, function(reason) {
-        console.log('Error: ' + reason.result.error.message);
-      });
 
     }
   </script>
@@ -86,5 +109,6 @@
 </head>
 <body>
   <h3>Hello World</h3>
+  <div id="file_contents"></div>
 </body>
 </html>
