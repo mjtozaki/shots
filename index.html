@@ -1,1 +1,52 @@
-hello world
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+    "use strict";
+    
+    function gapi_loaded() {
+      console.log('Loading gapi');
+      var SCOPE = 'https://www.googleapis.com/auth/drive';
+//       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
+      
+      
+      
+      // 2. Initialize the JavaScript client library.
+      gapi.client.init({
+        //'apiKey': 'XXXX',
+        // Your API key will be automatically added to the Discovery Document URLs.
+//         'discoveryDocs': ['https://people.googleapis.com/$discovery/rest'],
+        // clientId and scope are optional if auth is not required.
+        'clientId': '736223058833-bhis1u3rfsk22cd17rh4rf2bflongtuf.apps.googleusercontent.com',
+        'scope': 'SCOPE',
+      }).then(function() {
+        // 3. Initialize and make the API request.
+//         return gapi.client.people.people.get({
+//           'resourceName': 'people/me',
+//           'requestMask.includeField': 'person.names'
+//         });
+        console.log('Requesting files.list');
+        return gapi.client.request({
+          'path': 'https://www.googleapis.com/drive/v3/files',
+          'spaces': 'drive' /*,appDataFolder*/,
+//           'path': 'https://people.googleapis.com/v1/people/me?requestMask.includeField=person.names',
+        });
+      }, function(reason) {
+        console.log('Error: ' + reason.result.error.message);
+      }).then(function(response) {
+        console.log(response.result);
+      }, function(reason) {
+        console.log('Error: ' + reason.result.error.message);
+      });
+
+    }
+  </script>
+
+  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+</head>
+<body>
+  <h3>Hello World</h3>
+</body>
+</html>
