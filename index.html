@@ -99,6 +99,7 @@
           })
         .then(
           function(response) {
+            console.log(response);
             $("#file_contents").text(response);
           },
           function(reason) {
