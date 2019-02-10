@@ -97,7 +97,8 @@
             $("#file_contents").text(response);
           },
           function(reason) {
-            console.log('Error: ' + reason.result.error.message);
+            console.log('Error: ' + reason);
+//             console.log('Error: ' + reason.result.error.message);
           });
 
     }
