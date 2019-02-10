@@ -14,11 +14,11 @@
       var apiKey = url('?api_key');
       var clientId = url('?client_id');
       
-      if (apiKey === "") {
+      if (apiKey === undefined) {
         window.alert("api_key parameter must be set.");
         good = false;
       }
-      if (clientId === "") {
+      if (clientId === undefined) {
         window.alert("client_id parameter must be set.");
         good = false;
       }
