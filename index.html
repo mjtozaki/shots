@@ -70,8 +70,10 @@
             console.log('Requesting files.list');
             return gapi.client.request({
               'path': 'https://www.googleapis.com/drive/v3/files',
-              'spaces': 'drive' /*,appDataFolder*/,
-              'q': "name contains '.shot'",
+              'params': {
+                'spaces': 'drive' /*,appDataFolder*/,
+                'q': "name contains '.shot'",
+              },
             });
           },
           function(reason) {
@@ -86,7 +88,11 @@
             // Now take first result and lets get its contents
             var fileId = response.files[0].id;
             return gapi.client.request({
-              'path': 'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media&acknowledgeAbuse=true',
+              'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
+              'params': {
+                 'alt': 'media',
+                 'acknowledgeAbuse': true,
+              },
             });
           },
           function(reason) {
