@@ -110,7 +110,7 @@
     }
     
     function textToHtml(text) {
-      return text.replace('\n', '<br>');
+      return text.replace(new RegExp('\n', 'g'), '<br>');
     }
   </script>
 
