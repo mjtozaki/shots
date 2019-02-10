@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
   <script type="text/javascript">
     "use strict";
     
@@ -9,16 +10,30 @@
       var SCOPE = 'https://www.googleapis.com/auth/drive';
 //       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
       
+      var good = true;
+      apiKey = url('?api_key');
+      clientId = url('?client_id');
       
-      
+      if (apiKey === "") {
+        window.alert("api_key parameter must be set.");
+        good = false;
+      }
+      if (clientId === "") {
+        window.alert("client_id parameter must be set.");
+        good = false;
+      }
+      if (!good) {
+        return;
+      }
+
       // 2. Initialize the JavaScript client library.
       gapi.client.init({
-        //'apiKey': 'XXXX',
+        'apiKey': apiKey,
         // Your API key will be automatically added to the Discovery Document URLs.
 //         'discoveryDocs': ['https://people.googleapis.com/$discovery/rest'],
         // clientId and scope are optional if auth is not required.
-        'clientId': '736223058833-bhis1u3rfsk22cd17rh4rf2bflongtuf.apps.googleusercontent.com',
-        'scope': 'SCOPE',
+        'clientId': clientId,
+        'scope': SCOPE,
       }).then(function() {
         // 3. Initialize and make the API request.
 //         return gapi.client.people.people.get({
@@ -42,8 +57,8 @@
     }
   </script>
 
-  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
 
 </head>
 <body>
