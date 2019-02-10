@@ -100,7 +100,7 @@
         .then(
           function(response) {
             console.log(response);
-            $("#file_contents").text(response);
+            $("#file_contents").text(response.body);
           },
           function(reason) {
             console.log('Error: ' + reason);
