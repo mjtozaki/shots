@@ -85,8 +85,11 @@
             // File listing
             console.log(response.result);
             
+            var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
+            console.log(shotFiles);
+            
             // Now take first result and lets get its contents
-            var fileId = response.result.files[0].id;
+            var fileId = shotFiles[0].id;
             return gapi.client.request({
               'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
               'params': {
