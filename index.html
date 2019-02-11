@@ -12,6 +12,62 @@
       console.log('Loading gapi');
       gapi.load('client:auth2', initClient);
     }
+    
+    /* Based upon:
+     *  -http://ryanogles.by/an-exploration-of-javascript-builders/
+     *  -https://medium.com/@axelhadfeg/builder-pattern-using-javascript-and-es6-ec1539182e24
+     */
+    class BaseBuilder {
+      init() {  
+        Object.keys(this).forEach((key) => {
+          const setterName = `set{key.substring(0,1).toUpperCase()}${key.substring(1)}`;
+          this[setterName] = (value) => {
+            this[key] = value;
+            return this;
+          };
+        });
+      }
+
+      build() {
+        const fields = Object.keys(this).filter((key) => (
+          typeof this[key] !== 'function'
+        ));
+                
+        var properties =  fields.reduce((returnValue, key) => {
+          return {
+            ...returnValue,
+            [key]: {
+              value: this[key],
+              writable: false
+            }
+          };
+        }, {});
+        
+        var outputObject = {};
+        Object.defineProperties(outputObject, properties);
+        return outputObject;
+        
+//         return keysNoWithers.reduce((returnValue, key) => {
+//           return {
+//             ...returnValue,
+//             [key]: this[key]
+//           };
+//         }, {});
+      }
+    }
+
+    class ShotBuilder extends BaseBuilder {
+      constructor() {
+        super();
+        
+        this.elapsed = [];
+        this.pressure = [];
+        this.flow = [];
+        this.temperature = []
+        
+        super.init();
+      }
+    }
 
     function initClient() {
       console.log('Loaded gapi');
