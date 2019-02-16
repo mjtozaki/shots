@@ -104,7 +104,7 @@
     function tclListToNumberArray(tclList) {
       return
           tclList
-            .split(/\s/+)
+            .split(/\s+/)
             .map(numStr => Number(numStr));
     }
     function shotFromShotFileContents(contents) {
