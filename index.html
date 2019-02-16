@@ -20,7 +20,7 @@
     class BaseBuilder {
       init() {  
         Object.keys(this).forEach((key) => {
-          const setterName = `set{key.substring(0,1).toUpperCase()}${key.substring(1)}`;
+          const setterName = `set${key.substring(0,1).toUpperCase()}${key.substring(1)}`;
           this[setterName] = (value) => {
             this[key] = value;
             return this;
