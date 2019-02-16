@@ -102,10 +102,7 @@
       }
     }
     function tclListToNumberArray(tclList) {
-      return
-          tclList
-            .split(/\s+/)
-            .map(numStr => Number(numStr));
+      return tclList.split(/\s+/).map(numStr => Number(numStr));
     }
     function shotFromShotFileContents(contents) {
       var attrs = tclArrayDeserializer(contents);
