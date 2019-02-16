@@ -218,13 +218,13 @@
         return /[a-zA-Z_]/.test(ch);
       }
       eatWhitespace() {
-        while (this.pos < this.str.length && isWhitespace(this.str.charAt(this.pos))) {
+        while (this.pos < this.str.length && this.isWhitespace(this.str.charAt(this.pos))) {
           ++this.pos;
         }
       }
       extractWord() {
         var origin = this.pos;
-         while (this.pos < this.str.length && isWordChar(this.str.charAt(this.pos))) {
+         while (this.pos < this.str.length && this.isWordChar(this.str.charAt(this.pos))) {
            ++this.pos;
          }
         return this.str.substring(origin, this.pos);
@@ -249,16 +249,16 @@
           this.pos-2); // End before the '}'.
       }
       nextToken() {
-        eatWhitespace();
+        this.eatWhitespace();
         
         if (this.pos >= this.str.len) {
           return new Token(TOKEN_TYPE_EOF, undefined);
         }
         var ch = this.str.charAt(this.pos);
-        if (isWordChar(ch)) {
-          return new Token(TOKEN_TYPE_WORD, extractWord());
+        if (this.isWordChar(ch)) {
+          return new Token(TOKEN_TYPE_WORD, this.extractWord());
         } else if (ch === '{') {
-          return new Token(TOKEN_TYPE_WORD, extractBracedWord());
+          return new Token(TOKEN_TYPE_WORD, this.extractBracedWord());
         } else {
           throw new TclError("Unexpected token.");
         }
