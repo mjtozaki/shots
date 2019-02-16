@@ -190,14 +190,15 @@
       // TODO: implement newline-related restrictions.
       
       // tokens:  (\s+), (\n), ([a-zA-Z0-9_]+), ({), (})
+      var tokenizer = new Tokenizer(arrayString);
       var tclArray = new Map();
       while (1) {
-        var token = nextToken();
+        var token = tokenizer.nextToken();
         if (token.tokenType == TOKEN_TYPE_EOF) {
           break;
         }
         var key = token.value;
-        token = nextToken();
+        token = tokenizer.nextToken();
         if (token.tokenType == TOKEN_TYPE_EOF) {
           throw new TclError("Serialized Tcl arrays should have an even number of elements.");
         }
