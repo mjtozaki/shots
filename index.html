@@ -245,7 +245,7 @@
       nextToken() {
         this.eatWhitespace();
         
-        if (this.pos >= this.str.len) {
+        if (this.pos >= this.str.length) {
           return new Token(TOKEN_TYPE_EOF, undefined);
         }
         var ch = this.str.charAt(this.pos);
