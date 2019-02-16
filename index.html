@@ -64,7 +64,7 @@
         super(...params);
         
         if (Error.captureStackTrace) {
-          Error.captureStackTrace(this, CustomError);
+          Error.captureStackTrace(this, ShotSyntaxError);
         }
       }
     }
@@ -154,7 +154,7 @@
         super(...params);
         
         if (Error.captureStackTrace) {
-          Error.captureStackTrace(this, CustomError);
+          Error.captureStackTrace(this, TclError);
         }
       }
     }
@@ -254,7 +254,7 @@
         } else if (ch === '{') {
           return new Token(TOKEN_TYPE_WORD, this.extractBracedWord());
         } else {
-          throw new TclError("Unexpected token.");
+          throw new TclError("Unexpected token '" + ch + "' at pos " + this.pos + ".");
         }
       }
     }
