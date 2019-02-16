@@ -209,7 +209,7 @@
         return /\s/.test(ch);
       }
       static isWordChar(ch) {
-        return /[a-zA-Z_]/.test(ch);
+        return /[a-zA-Z0-9_#:\.+-]/.test(ch);
       }
       eatWhitespace() {
         while (this.pos < this.str.length && Tokenizer.isWhitespace(this.str.charAt(this.pos))) {
