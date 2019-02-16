@@ -126,7 +126,8 @@
       var espressoTemperatureBasket = tclListToNumberArray(attrs.get('espresso_temperature_basket'));
       var espressoTemperatureMix = tclListToNumberArray(attrs.get('espresso_temperature_mix'));
       
-      
+      console.log("espresso_elapsed: " + attrs.get('espresso_elapsed'));
+      console.log("espressoElapsed: " + espressoElapsed);
       var numPoints = espressoElapsed.length;
       if (![espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
           .every(sequence => sequence.length == numPoints)) {
