@@ -2,6 +2,7 @@
 <html>
 <head>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script type="text/javascript">
     "use strict";
     var GoogleAuth;
@@ -98,6 +99,48 @@
             + "temperatureMix: " + this.temperatureMix + BR
             + "author: " + this.author + BR;
           div.html(html);
+        }
+        // Move this stuff to polymorphic renderers.
+        
+        obj.renderPlot = function(plot) {
+//           var plot = document.getElementById('shot_plot');
+          var pressure = {
+            x: this.elapsed,
+            y: this.pressure,
+            mode: 'lines',
+            name: 'Pressure',
+            line: {
+              color: 'green'
+            }
+          };
+          var flow = {
+            x: this.elapsed,
+            y: this.flow,
+            mode: 'lines',
+            name: 'Flow',
+            line: {
+              color: 'blue'
+            }
+          };
+          var temperatureBasket = {
+            x: this.elapsed,
+            y: this.temperatureBasket,
+            mode: 'lines',
+            name: 'Basket Temperature',
+            line: {
+              color: 'red'
+            }
+          };
+            
+          var data = [pressure, flow, temperatureBasket];
+          var layout = {
+            title: `Shot @ ${this.timestamp}`
+          };
+          Plotly.plot(plot, data, layout);
+//           Plotly.plot(plot, [{
+//           x: [1, 2, 3, 4, 5],
+//           y: [1, 2, 4, 8, 16] }], {
+//           margin: { t: 0 } } );
         }
       }
     }
@@ -352,6 +395,10 @@
             
             var shot = shotFromShotFileContents(response.body);
             shot.renderText($("#file_contents"));
+            
+            var plot = document.getElementById('shot_plot');
+            shot.renderPlot(plot);
+
           },
           function(reason) {
             console.log('Error: ' + reason);
@@ -372,5 +419,6 @@
 <body>
   <h3>Hello World</h3>
   <div id="file_contents"></div>
+  <div id="shot_plot" style="width:600px;height:250px;"></div>
 </body>
 </html>
