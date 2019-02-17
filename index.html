@@ -159,7 +159,7 @@
             showlegend: false,
             xaxis: {
               title: 'Elapsed (s)',
-              domain: [0, 0.9],
+              domain: [0, 0.85],
             },
             yaxis: {
               title: 'Pressure (bar)',
@@ -182,7 +182,7 @@
               anchor: 'free',
               overlaying: 'y',
               side: 'right',
-              position: 0.85
+              position: 1
             },
           };
           Plotly.plot(plot, data, layout);
