@@ -105,6 +105,7 @@
       return tclList.split(/\s+/).map(numStr => Number(numStr));
     }
     function shotFromShotFileContents(contents) {
+      var S_TO_MS = 1000;
       var attrs = tclArrayDeserializer(contents);
       if (!attrs.has('settings')) {
         throw new ShotSyntaxError("settings key not present.");
@@ -134,7 +135,7 @@
       var builder = new ShotBuilder();
       return builder
         .setTimestamp(
-          new Date(Number(attrs.get('clock'))))
+          new Date(Number(attrs.get('clock') * S_TO_MS)))
         .setElapsed(espressoElapsed)
         .setPressure(espressoPressure)
         .setWeight(espressoWeight)
