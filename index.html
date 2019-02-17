@@ -139,7 +139,8 @@
             name: 'Flow',
             line: {
               color: 'blue'
-            }
+            },
+            yaxis: 'y2'
           };
           var temperatureBasket = {
             x: this.elapsed,
@@ -148,12 +149,36 @@
             name: 'Basket Temperature',
             line: {
               color: 'red'
-            }
+            },
+            yaxis: 'y3'
           };
             
           var data = [pressure, flow, temperatureBasket];
           var layout = {
-            title: `Shot @ ${this.timestamp}`
+            title: `Shot @ ${this.timestamp}`,
+            yaxis: {
+              title: 'Pressure (bar)',
+              titlefont: {color: 'green'},
+              tickfont: {color: 'green'},
+              side: 'left'
+            },
+            yaxis2: {
+              title: 'Flow (mL/s)',
+              titlefont: {color: 'blue'},
+              tickfont: {color: 'blue'},
+              anchor: 'x',
+              overlaying: 'y',
+              side: 'right'
+            },
+            yaxis3: {
+              title: 'Basket Temperature (C)',
+              titlefont: {color: 'red'},
+              tickfont: {color: 'red'},
+              anchor: 'free',
+              overlaying: 'y',
+              side: 'right',
+              position: 0.85
+            },
           };
           Plotly.plot(plot, data, layout);
 //           Plotly.plot(plot, [{
