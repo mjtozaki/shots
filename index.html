@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <style>
+    // https://stackoverflow.com/a/24894523
+    // Mixin for ratio dimensions    
+    .viewportRatio(@x, @y) {
+      width: 100vw;
+      height: @y * 100vw / @x;
+      max-width: @x / @y * 100vh;
+      max-height: 100vh;
+    }
+
+    .shot_plot {
+      // Force a ratio of 5:1 for all <div>
+      .viewportRatio(4, 3);
+
+      margin: 0;
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+    }
+  </style>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script type="text/javascript">
@@ -419,6 +438,6 @@
 <body>
   <h3>Hello World</h3>
   <div id="file_contents"></div>
-  <div id="shot_plot" style="width:600px;height:250px;"></div>
+  <div class="shot_plot" id="shot_plot"></div>
 </body>
 </html>
