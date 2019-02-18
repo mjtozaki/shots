@@ -158,11 +158,12 @@
           // TODO: use polymorphism instead of if.
           // TODO: handle advanced profiles.
           var temperatureTarget = {
-            x0: 0,
-            dx: 1,
-//             y: this.temperatureBasket,
-            y0: this.temperatureTarget,
-            dy: 0,
+//             x0: 0,
+//             dx: 1,
+            x: [0, this.elapsed[this.elapsed.length - 1]],
+            y: [this.temperatureBasket, this.temperatureBasket],
+//             y0: this.temperatureTarget,
+//             dy: 0,
             mode: 'lines',
             name: 'Target Basket Temperature',
             line: {
