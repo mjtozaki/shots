@@ -100,6 +100,7 @@
         this.flowWeight = [];
         this.temperatureBasket = [];
         this.temperatureMix = [];
+        this.temperatureTarget = 0;
         this.author = "";
 
         super.init();
@@ -116,6 +117,7 @@
             + "flowWeight: " + this.flowWeight + BR
             + "temperatureBasket: " + this.temperatureBasket + BR
             + "temperatureMix: " + this.temperatureMix + BR
+            + "temperatureTarget" + this.temperatureTarget + BR
             + "author: " + this.author + BR;
           div.html(html);
         }
@@ -152,8 +154,25 @@
             },
             yaxis: 'y3'
           };
+          
+          // TODO: use polymorphism instead of if.
+          // TODO: handle advanced profiles.
+          var temperatureTarget = {
+            x0: 0,
+            dx: 1,
+//             y: this.temperatureBasket,
+            y0: this.temperatureTarget,
+            dy: 0,
+            mode: 'lines',
+            name: 'Target Basket Temperature',
+            line: {
+              color: 'red',
+              dash: 'dash'
+            },
+            yaxis: 'y3'
+          };
             
-          var data = [pressure, flow, temperatureBasket];
+          var data = [pressure, flow, temperatureBasket, temperatureTarget];
           var layout = {
             title: `Shot @ ${this.timestamp}`,
             showlegend: false,
@@ -235,6 +254,7 @@
         .setFlowWeight(espressoFlowWeight)
         .setTemperatureBasket(espressoTemperatureBasket)
         .setTemperatureMix(espressoTemperatureMix)
+        .setTemperatureTarget(settings.get('espresso_temperature'))
         .setAuthor(settings.get('author'))
         .build();
     }
