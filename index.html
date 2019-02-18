@@ -261,7 +261,7 @@
         .setFlowWeight(espressoFlowWeight)
         .setTemperatureBasket(espressoTemperatureBasket)
         .setTemperatureMix(espressoTemperatureMix)
-        .setTemperatureTarget(Array(numPoints).fill(settings.get('espresso_temperature')))
+        .setTemperatureTarget(Array(numPoints).fill(Number(settings.get('espresso_temperature'))))
         .setAuthor(settings.get('author'))
         .build();
     }
