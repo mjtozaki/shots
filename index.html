@@ -155,8 +155,16 @@
             yaxis: 'y3'
           };
           
-          // TODO: use polymorphism instead of if.
-          // TODO: handle advanced profiles.
+          // TODO: align domain such that temperature target is centered.
+          var center =
+              this.temperatureTarget.reduce(
+                (accumulator, currentValue) => accumulator + currentValue)
+              / this.temperatureTarget.length;
+          var maxDifference = [...Array(this.elapsed.length).keys()]
+              .map(
+                (index) => Math.max(Math.abs(this.temperatureTarget[index] - center), Math.abs(this.temperatureBasket[index] - center)))
+              .reduce((accumulator, currentValue) => Math.max(accumulator, currentValue), 0);
+          var temperatureRange = [center - maxDifference, center + maxDifference];
           var temperatureTarget = {
             x: this.elapsed,
             y: this.temperatureTarget,
@@ -198,7 +206,9 @@
               anchor: 'free',
               overlaying: 'y',
               side: 'right',
-              position: 1
+              position: 1,
+              autorange: false,
+              range: temperatureRange
             },
           };
           Plotly.plot(plot, data, layout);
