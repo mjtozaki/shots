@@ -3,17 +3,23 @@
 <head>
   <style>
     // https://stackoverflow.com/a/24894523
-    // Mixin for ratio dimensions    
-    .viewportRatio(@x, @y) {
+    // LESS Mixin for ratio dimensions    
+/*     .viewportRatio(@x, @y) {
       width: 100vw;
       height: @y * 100vw / @x;
       max-width: @x / @y * 100vh;
       max-height: 100vh;
-    }
+    } */
 
     .shot_plot {
       // Force a ratio of 5:1 for all <div>
-      .viewportRatio(4, 3);
+/*       .viewportRatio(4, 3); */
+      width: 100vw; 
+      height: 75vw; /* height:width ratio = 3/4 = .75  */
+      max-height: 100vh;
+      max-width: 133.33vh; /* 4/3 = 1.3333 */
+
+
 
       margin: 0;
 /*       position: absolute;
@@ -22,7 +28,7 @@
     
     .shot_text {
       // Force a ratio of 5:1 for all <div>
-      .viewportRatio(4, 3);
+/*       .viewportRatio(4, 3); */
 
       margin: 0;
 /*       position: absolute;
