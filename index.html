@@ -242,7 +242,7 @@
       var apiKey = url('#api_key');
       var clientId = url('#client_id');
       var view = url('#view');
-      var shotFileId = url('#shotFileId');
+      var shotFileId = url('#shot_file_id');
       
       if (apiKey === undefined || clientId === undefined) {
         // Show form.
@@ -395,13 +395,13 @@
       window.location = dest;
     }
     function gotoSingleShot(fileId) {
-      var apiKey = url('#api_key');
-      var clientId = url('#client_id');
+      var api_key = url('#api_key');
+      var client_id = url('#client_id');
       window.location = gotoHash({
-        apiKey: apiKey,
-        clientId: clientId,
+        api_key: api_key,
+        client_id: client_id,
         view: 'single',
-        shotFileId: fileId,
+        shot_file_id: fileId,
       });
     }
     
