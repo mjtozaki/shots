@@ -262,6 +262,14 @@
         case 'list':
           // Can arrange DOM immediately.
           var shotFileSelect = document.getElementById('shot-file-select');
+          // Reset state of select.
+          while (shotFileSelect.firstChild) {
+            shotFileSelect.removeChild(shotFileSelect.firstChild);
+          }
+          var defaultOpt = document.createElement('option');
+          defaultOpt.value = null;
+          defaultOpt.innerHTML = '-- Shot Files --';
+          shotFileSelect.appendChild(opt);
           
           // Async.
           whenAuthed.then(
@@ -301,6 +309,7 @@
           // Can arrange DOM immediately.
           if (shotFileId === undefined) {
             // Throw.
+            console.log('No shot file to show.');
             break;
           }
           
@@ -375,6 +384,38 @@
       return [...datetimeToMetadata.keys()].sort().reverse().map(
         datetime => datetimeToMetadata.get(datetime));
     }
+    
+    
+    // Setup other static stuff.
+    function gotoHash(params) {
+      var dest = '#' +
+          Object.keys(params)
+            .map(key => `${key}=${params[key]}`)
+            .join('&');
+      window.location = dest;
+    }
+    function gotoSingleShot(fileId) {
+      var apiKey = url('#api_key');
+      var clientId = url('#client_id');
+      window.location = gotoHash({
+        apiKey: apiKey,
+        clientId: clientId,
+        view: 'single',
+        shotFileId: fileId,
+      });
+    }
+    
+    function shotFileSelectChanged(event) {
+      if (event.target.value === null) {
+        return;
+      }
+      
+      var metadata = event.target.value;
+      gotoSingleShot(metadata.fileId);
+    }
+    document.querySelector('select[name="shot-file-select"]').onchange = shotFileSelectChanged;
+
+
 
     
     /* Based upon:
@@ -842,7 +883,6 @@
   <h3>Hello World</h3>
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
   <select id="shot-file-select">
-    <option value="">-- Shot Files --</option>
   </select>
 
   <div class="shot_plot" id="shot_plot"></div>
