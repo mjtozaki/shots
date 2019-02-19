@@ -152,6 +152,7 @@
           },
         })
         .then(
+          // Lookup parent names.
           function(response) {
             // File listing
             console.log(response);
@@ -159,8 +160,44 @@
             var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
             console.log(shotFiles);
             
-            return shotFiles;
+            var parents = new Set(
+              shotFiles
+                .flatMap(shotFile => shotFile.parents));
+            var batch = gapi.client.newBatch();
+            parents.forEach(
+              parent => {
+                batch.add(
+                  gapi.client.request({
+                    'path': `https://www.googleapis.com/drive/v3/files/${parent}`,
+                    'params': {
+                      'fields': 'id,name',
+                    },
+                  }),
+                  {
+                    id: parent,
+                  });
+              });
 
+            return batch
+              .then(
+                function(response) {
+                  console.log(response);
+                  
+                  // need to convert
+                },
+                function() {
+                  // Throw.
+                  console.log('Error: ' + reason);
+                }
+              );
+          },
+          function(reason) {
+            // Throw.
+            console.log('Error: ' + reason);
+          }
+        );
+        
+        
 //             // Now take first result and lets get its contents
 //             var fileId = shotFiles[0].id;
 //             return gapi.client.request({
@@ -169,12 +206,7 @@
 //                  'alt': 'media',
 //               },
 //             });
-          },
-          function(reason) {
-            // Throw.
-            console.log('Error: ' + reason);
-          }
-        );
+
 
       }
     }
