@@ -363,7 +363,7 @@
           var datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
           datetimeToMetadata[datetime] = metadata;
           
-          var parentsPath = parents.join('/');
+          var parentsPath = metadata.parents.join('/');
           metadata.friendlyName = `${parentsPath}/${metadata.name}`;
         });
       
