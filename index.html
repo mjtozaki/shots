@@ -148,12 +148,13 @@
           'params': {
             'spaces': 'drive' /*,appDataFolder*/,
             'q': "name contains '.shot'",
+            'fields': 'nextPageToken,files(id,name,parents)',
           },
         })
         .then(
           function(response) {
             // File listing
-            console.log(response.result);
+            console.log(response);
 
             var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
             console.log(shotFiles);
