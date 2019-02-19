@@ -127,7 +127,7 @@
           )
           .then(
             // Record that we are signed in.
-            function() {
+            () => {
               // TODO: check that acquiring is same as local key and client id. If not, then do not record?
               this.activeApiKey = apiKey;
               this.activeClientId = clientId;
