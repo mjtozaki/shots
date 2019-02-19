@@ -405,15 +405,17 @@
       });
     }
     
+    document.addEventListener('DOMContentLoaded',function() {
+      document.querySelector('select[name="shot-file-select"]').onchange = shotFileSelectChanged;
+    }, false);
+
     function shotFileSelectChanged(event) {
       if (event.target.value === null) {
         return;
       }
-      
       var metadata = event.target.value;
       gotoSingleShot(metadata.fileId);
     }
-    document.querySelector('select[name="shot-file-select"]').onchange = shotFileSelectChanged;
 
 
 
