@@ -214,6 +214,7 @@
           // Async.
           whenAuthed.then(
             function() {
+              console.log('listShotFiles??');
               return GapiWrapper.listShotFiles();
             },
             function() {
@@ -275,44 +276,6 @@
         default:
           // Throw.
       }
-      
-        
-        
-//       ensureGapiClientAndAuthLoading();
-//       gapiClientAndAuthLoaded.then(
-//           // 2. Initialize the JavaScript client library.
-//           gapi.client.init({
-//             'apiKey': apiKey,
-//             // Your API key will be automatically added to the Discovery Document URLs.
-//     //         'discoveryDocs': ['https://people.googleapis.com/$discovery/rest'],
-//             // clientId and scope are optional if auth is not required.
-//             'clientId': clientId,
-//             'scope': SCOPE,
-//           })
-//             .then(
-//               function() {
-//                 var needToSignIn = true;
-//                 GoogleAuth = gapi.auth2.getAuthInstance();
-//                 if (GoogleAuth.isSignedIn.get()) {
-//                   var user = GoogleAuth.currentUser.get();
-//                   var isAuthorized = user.hasGrantedScopes(SCOPE);
-//                   if (!isAuthorized) {
-//                     console.log("Signed in and not authorized.");
-//                   } else {
-//                     needToSignIn = false;
-//                     console.log("Signed in and authorized!");
-//                   }
-//                 } else {
-//                   console.log("Not signed in.");
-//                 }
-//                 if (needToSignIn) {
-//                   return GoogleAuth.signIn({
-//     //                 'prompt': 'consent',
-//                   });
-//                 }
-//                 return Promise.resolve("doesn't matter");
-//               })
-          
     }
     window.addEventListener('hashchange', onHashChange, false);
     
@@ -329,7 +292,7 @@
     }
     
     function orderAndLabelShotFileMetadatas(metadatas) {
-      console.log("metadatas: metadatas");
+      console.log("metadatas: " + metadatas);
       return metadatas;
     }
 
