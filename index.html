@@ -346,10 +346,10 @@
     }
     
     function orderAndLabelShotFileMetadatas(metadatas) {
-      // TODO: group by parents hierarchy.
-
-      // parse the date out of each file name and sort by that key.
-      // example: 20190202T141820.shot
+      // Parse the date out of each file name and sort by that key.
+      // Assume file will CONTAIN this pattern, not exactly match.
+      // A user may edit filename, but is expected to leave datetime intact.
+      // Example filename: 20190202T141820.shot
       var datetimeRegex = /(\d\d\d\d)(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)/i;
       var datetimeToMetadata = new Map();
       metadatas.forEach(
@@ -357,17 +357,21 @@
           var result = datetimeRegex.exec(metadata.name);
           if (result === null) {
             // Throw
-            console.log('Failed to find datetime of shot file.');
+            console.log(`Failed to find datetime of shot file ${metadata.name} (${metadata.fileId}).`);
             return;
           }
           var datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
           datetimeToMetadata[datetime] = metadata;
           
-          // TODO: friendly name like YYYY-MM-DD Shot #3 (HH:MM:SS)
-          metadata.friendlyName = metadata.name;
+          var parentsPath = parents.join('/');
+          metadata.friendlyName = `${parentsPath}/${metadata.name}`;
         });
       
+      // TODO: group by parents hierarchy.
+
+      // TODO: friendly name like YYYY-MM-DD Shot #3 (HH:MM:SS). Shot # should be function of number of shots prior, in the same day, in the same folder.
       
+      // Sort.
       return [...datetimeToMetadata.keys()].sort().reverse().map(
         datetime => datetimeToMetadata[datetime]);
     }
