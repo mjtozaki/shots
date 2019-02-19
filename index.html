@@ -48,6 +48,12 @@
       console.log(`hash=${window.location.hash}`);
     }
     window.addEventListener('hashchange', hashHandler, false);
+    // Call for initial page load.
+    hashHandler();
+    
+    function appendToHash() {
+      window.location = window.location.hash + '&hello=world';
+    }
 
     
     var GoogleAuth;
@@ -520,6 +526,7 @@
 </head>
 <body>
   <h3>Hello World</h3>
+  <button onclick="appendToHash()">Append to hash</button>
   <div class="shot_plot" id="shot_plot"></div>
   <div class="shot_text" id="file_contents"></div>
 </body>
