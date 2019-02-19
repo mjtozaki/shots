@@ -397,7 +397,7 @@
     function gotoSingleShot(fileId) {
       var api_key = url('#api_key');
       var client_id = url('#client_id');
-      window.location = gotoHash({
+      gotoHash({
         api_key: api_key,
         client_id: client_id,
         view: 'single',
