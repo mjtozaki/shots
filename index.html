@@ -267,7 +267,7 @@
             shotFileSelect.removeChild(shotFileSelect.firstChild);
           }
           var defaultOpt = document.createElement('option');
-          defaultOpt.value = null;
+          defaultOpt.value = '';
           defaultOpt.innerHTML = '-- Shot Files --';
           shotFileSelect.appendChild(defaultOpt);
           
@@ -410,7 +410,7 @@
     }, false);
 
     function shotFileSelectChanged(event) {
-      if (event.target.value === null) {
+      if (event.target.value === '') {
         return;
       }
       var fileId = event.target.value;
