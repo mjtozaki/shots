@@ -361,7 +361,7 @@
             return;
           }
           var datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
-          datetimeToMetadata[datetime] = metadata;
+          datetimeToMetadata.set(datetime, metadata);
           
           var parentsPath = metadata.parents.join('/');
           metadata.friendlyName = `${parentsPath}/${metadata.name}`;
@@ -373,7 +373,7 @@
       
       // Sort.
       return [...datetimeToMetadata.keys()].sort().reverse().map(
-        datetime => datetimeToMetadata[datetime]);
+        datetime => datetimeToMetadata.get(datetime));
     }
 
     
