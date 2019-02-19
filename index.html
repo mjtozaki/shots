@@ -293,7 +293,7 @@
               prettyMetadatas.forEach(
                 (metadata) => {
                   var opt = document.createElement('option');
-                  opt.value = metadata;
+                  opt.value = metadata.fileId;
                   opt.innerHTML = metadata.friendlyName;
                   shotFileSelect.appendChild(opt);
                 });
@@ -413,8 +413,8 @@
       if (event.target.value === null) {
         return;
       }
-      var metadata = event.target.value;
-      gotoSingleShot(metadata.fileId);
+      var fileId = event.target.value;
+      gotoSingleShot(fileId);
     }
 
 
