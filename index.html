@@ -368,7 +368,7 @@
         });
       
       
-      return datetimeToMetadata.keys().sort().reverse().map(
+      return [...datetimeToMetadata.keys()].sort().reverse().map(
         datetime => datetimeToMetadata[datetime]);
     }
 
