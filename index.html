@@ -46,6 +46,15 @@
   <script type="text/javascript">
     "use strict";
     
+    class FileMetadata {
+      constructor(fileId, name, parents) {
+        this.fileId = fileId;
+        this.name = name;
+        this.parents = parents;
+        this.friendlyName = null;
+      }
+    }
+    
     // TODO: locking
     class _GapiWrapper {
       constructor() {
@@ -183,7 +192,16 @@
                 function(response) {
                   console.log(response);
                   
-                  // need to convert
+                  var parentIdToResourceMapping = response.result;
+                  
+                  return shotFiles.map(
+                    shotFile => {
+                      // TODO: propagate parentId as well.
+                      var parents = shotFile.parents.map(
+                        parentId => parentIdToResourceMapping[parentId].name);
+                      var metadata = new FileMetadata(shotFile.id, shotFile.name, parents);
+                      return metadata;
+                    });
                 },
                 function() {
                   // Throw.
@@ -328,8 +346,30 @@
     }
     
     function orderAndLabelShotFileMetadatas(metadatas) {
-      console.log("metadatas: " + metadatas);
-      return metadatas;
+      // TODO: group by parents hierarchy.
+
+      // parse the date out of each file name and sort by that key.
+      // example: 20190202T141820.shot
+      var datetimeRegex = /(\d\d\d\d)(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)/i;
+      var datetimeToMetadata = new Map();
+      metadatas.forEach(
+        metadata => {
+          var result = datetimeRegex.exec(metadata.name);
+          if (result === null) {
+            // Throw
+            console.log('Failed to find datetime of shot file.');
+            return;
+          }
+          var datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
+          datetimeToMetadata[datetime] = metadata;
+          
+          // TODO: friendly name like YYYY-MM-DD Shot #3 (HH:MM:SS)
+          metadata.friendlyName = metadata.name;
+        });
+      
+      
+      return datetimeToMetadata.keys().sort().reverse().map(
+        datetime => datetimeToMetadata[datetime]);
     }
 
     
