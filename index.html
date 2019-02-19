@@ -43,6 +43,13 @@
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script type="text/javascript">
     "use strict";
+    
+    function hashHandler() {
+      console.log(`hash=${window.location.hash}`);
+    }
+    window.addEventListener('hashchange', hashHandler, false);
+
+    
     var GoogleAuth;
     var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 //       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
