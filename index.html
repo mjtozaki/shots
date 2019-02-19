@@ -198,7 +198,7 @@
                     shotFile => {
                       // TODO: propagate parentId as well.
                       var parents = shotFile.parents.map(
-                        parentId => parentIdToResourceMapping[parentId].name);
+                        parentId => parentIdToResourceMapping[parentId].result.name);
                       var metadata = new FileMetadata(shotFile.id, shotFile.name, parents);
                       return metadata;
                     });
