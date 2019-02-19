@@ -269,7 +269,7 @@
           var defaultOpt = document.createElement('option');
           defaultOpt.value = null;
           defaultOpt.innerHTML = '-- Shot Files --';
-          shotFileSelect.appendChild(opt);
+          shotFileSelect.appendChild(defaultOpt);
           
           // Async.
           whenAuthed.then(
