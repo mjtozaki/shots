@@ -324,7 +324,7 @@
           // Async
           whenAuthed.then(
             function() {
-              return GoogleDrive.getFileContents(shotFileId);
+              return GapiWrapper.getFileContents(shotFileId);
             },
             function() {
               // Throw.
