@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:900" rel="stylesheet">
   <style>
     /* https://stackoverflow.com/a/24894523
      LESS Mixin for ratio dimensions    */
@@ -10,7 +11,14 @@
       max-width: @x / @y * 100vh;
       max-height: 100vh;
     } */
-
+    
+    .title {
+      color: gray;
+      font-size: 5vw;
+      margin: 1vh 1vw;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 900;
+    }
     .shot_plot {
       /* Force a ratio of 5:1 for all <div>
        .viewportRatio(4, 3); */
@@ -891,7 +899,7 @@
 
 </head>
 <body>
-  <h3>Hello World</h3>
+  <div class="title">SHOTS</div>
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
   <select id="shot-file-select">
   </select>
