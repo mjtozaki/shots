@@ -324,7 +324,7 @@
           // Async
           whenAuthed.then(
             function() {
-              return GoogleDrive.getShotFileContents(shotFileId);
+              return GoogleDrive.getFileContents(shotFileId);
             },
             function() {
               // Throw.
