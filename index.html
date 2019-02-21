@@ -214,18 +214,26 @@
             console.log('Error: ' + reason);
           }
         );
-        
-        
-//             // Now take first result and lets get its contents
-//             var fileId = shotFiles[0].id;
-//             return gapi.client.request({
-//               'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
-//               'params': {
-//                  'alt': 'media',
-//               },
-//             });
-
-
+      }
+      
+      /** Use once authenticated and authorized. */
+      getFileContents(fileId) {
+        return gapi.client.request({
+          'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
+          'params': {
+             'alt': 'media',
+          },
+        })
+        .then(
+          function(response) {
+            console.log(response);
+            return response.body;
+          },
+          function(reason) {
+            // Throw
+            console.log(reason.result.error.message);
+          }
+        );
       }
     }
 
@@ -320,18 +328,19 @@
             },
             function() {
               // Throw.
+              console.log('auth failed');
             }
           )
           .then(
-            function(shotFileContents) {
-              var shot = shotFromShotFileContents(response.body);
-              shot.renderText($("#file_contents"));
-
+            function(fileContents) {
+              var shot = shotFromShotFileContents(fileContents);
+              shot.renderText(document.getElementById('file_contents'));
               var plot = document.getElementById('shot_plot');
               shot.renderPlot(plot);
             },
             function() {
               // Throw
+              console.log('file retrieval failed');
             }
           );
           break;
