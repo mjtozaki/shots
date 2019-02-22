@@ -342,6 +342,14 @@
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
       
+      // Redirects
+      var redirect = url('#redirect');
+      if (redirect !== undefined) {
+        // TODO: get list of files (filtered by parent_set) then index by redirect
+        // TDOO: consider caching implications. always refresh, or reuse in-page cache.
+      }
+
+      
       updateNav();
     
       // Shift in all parameters now, incase there is another hash change.
