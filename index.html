@@ -328,9 +328,10 @@
         apiFormContainer.hidden = false;
         document.getElementById('api-form-api-key').value = (apiKey === undefined) ? "" : apiKey;
         document.getElementById('api-form-client-id').value = (clientId === undefined) ? "" : clientId;
-      } else {
-        apiFormContainer.hidden = true;
+        return true;
       }
+      apiFormContainer.hidden = true;
+      return false;
     }
     
     // The main feeder for location changes.
@@ -348,6 +349,10 @@
       // Default view mode.
       if (view === undefined) {
         view = 'list';
+      }
+      
+      if (maybeShowApiForm(apiKey, clientId)) {
+        return;
       }
       
       // Async acquiring authorization.
