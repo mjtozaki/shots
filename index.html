@@ -510,7 +510,7 @@
           warning.hidden = false;
         } else {
           warning.hidden = true;
-          var hashArgs('#');
+          var hashArgs = url('#');
           hashArgs['api_key'] = api_key;
           hashArgs['client_id'] = client_id;
           gotoHash(hashArgs);
