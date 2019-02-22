@@ -293,9 +293,9 @@
       }
     }
     
-    function hashArgsToLocationString(hashArgs) {
+    function hashToLocationString(hashArgs) {
       var newLocation = '#' + Object.entries(hashArgs)
-        .map(kvPair => kvPair[0] + '=' + kvPair[1])
+        .map(kvPair => `${kvPair[0]}=${kvPair[1]}`)
         .join('&');
       return newLocation;
     }
@@ -316,7 +316,7 @@
     function updateNav() {
       var persistentHashArgs = getPersistentHashArgs();
       document.getElementById('shots-nav').href =
-        hashArgsToLocationString(
+        hashToLocationString(
           {...persistentHashArgs, view: 'list'}
         );
     }
@@ -484,11 +484,7 @@
     
     // Setup other static stuff.
     function gotoHash(params) {
-      var dest = '#' +
-          Object.keys(params)
-            .map(key => `${key}=${params[key]}`)
-            .join('&');
-      window.location = dest;
+      window.location = hashToLocationString(params);
     }
     function gotoSingleShot(fileId) {
       var api_key = url('#api_key');
