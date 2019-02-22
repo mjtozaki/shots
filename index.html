@@ -272,7 +272,7 @@
      */
     
     function applyHashArgIfDefined(obj, key) {
-      var value = url('#" + key); 
+      var value = url('#' + key); 
       if (value !== undefined) {
         obj[key] = value;
       }
@@ -281,7 +281,7 @@
     function hashArgsToLocationString(hashArgs) {
       var newLocation = '#' + Object.entries(hashArgs)
         .map(kvPair => kvPair[0] + '=' + kvPair[1])
-        .join("&");
+        .join('&');
       return newLocation;
     }
     
