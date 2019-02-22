@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <link href="https://fonts.googleapis.com/css?family=Roboto:900" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,900" rel="stylesheet">
   <style>
     .odd-nav {
       color: gray;
@@ -21,6 +21,26 @@
     a {
       text-decoration: none;
     }
+    
+    .form-text {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+    }
+    div.form {
+      display: table-row;
+    }
+    label, input[type=text] {
+      display: table-cell;
+      margin-bottom: 10px;
+      margin-left: 10px;
+    }
+    #api-form-warning {
+      color: red;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+      margin-top: 10px;
+    }
+
 
     .shot_plot {
       /* Force a ratio of 5:1 for all <div>
@@ -301,6 +321,18 @@
         );
     }
     
+    function maybeShowApiForm(apiKey, clientId) {
+      // TODO: manage showing/hiding sets of controls better.
+      var apiFormContainer = document.getElementById('api-form-container');
+      if (apiKey === undefined || clientId === undefined) {
+        apiFormContainer.hidden = false;
+        document.getElementById('api-form-api-key').value = (apiKey === undefined) ? "" : apiKey;
+        document.getElementById('api-form-client-id').value = (clientId === undefined) ? "" : clientId;
+      } else {
+        apiFormContainer.hidden = true;
+      }
+    }
+    
     // The main feeder for location changes.
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
@@ -312,12 +344,6 @@
       var clientId = url('#client_id');
       var view = url('#view');
       var shotFileId = url('#shot_file_id');
-      
-      if (apiKey === undefined || clientId === undefined) {
-        // Show form.
-        showApiForm();
-        return;
-      }
       
       // Default view mode.
       if (view === undefined) {
@@ -477,6 +503,25 @@
     
     document.addEventListener('DOMContentLoaded',function() {
       document.querySelector('select[id="shot-file-select"]').onchange = shotFileSelectChanged;
+      
+      // Setup api form handlers.
+      document.getElementById('api-form-set').onclick = function() {
+        var api_key = document.getElementById('api-form-api-key').value;
+        var client_id = document.getElementById('api-form-client-id').value;
+        console.log(`api_key ${api_key} client_id ${client_id}`);
+        var warning = document.getElementById('api-form-warning');
+        if (api_key === '' || client_id === '') {
+          warning.hidden = false;
+        } else {
+          warning.hidden = true;
+          var hashArgs('#');
+          hashArgs['api_key'] = api_key;
+          hashArgs['client_id'] = client_id;
+          gotoHash(hashArgs);
+        }
+        return false;
+      };
+
     }, false);
 
     function shotFileSelectChanged(event) {
@@ -961,6 +1006,20 @@
   <span class="odd-nav">first</span>
   <br>
 
+  <div id="api-form-container" hidden>
+    <form method="get">
+      <div class="form">
+        <label class="form-text" for="api-form-api-key">api key</label>
+        <input id="api-form-api-key" type="text" name="api_key">
+      </div>
+      <div class="form">
+        <label class="form-text" for="api-form-client-id">client id</label>
+        <input id="api-form-client-id" type="text" name="client_id">
+      </div>
+      <input class="form-text" id="api-form-set" type="submit" value="Set">
+      <div id="api-form-warning" hidden>api key and client id must be populated to set.</div>
+    </form>
+  </div>
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
   <select id="shot-file-select">
   </select>
