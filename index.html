@@ -12,13 +12,21 @@
       max-height: 100vh;
     } */
     
-    .title {
+    .odd-nav {
       color: gray;
       font-size: 5vw;
-      margin: 1vh 1vw;
+      margin: 1vh .5vw;
       font-family: 'Roboto', sans-serif;
       font-weight: 900;
     }
+    .even-nav {
+      color: rgb(128,0,0);
+      font-size: 5vw;
+      margin: 1vh .5vw;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 900;
+    }
+
     .shot_plot {
       /* Force a ratio of 5:1 for all <div>
        .viewportRatio(4, 3); */
@@ -251,8 +259,58 @@
   <script type="text/javascript">
     "use strict";
     
+    /* Main navigation change entrypoints:
+     * 1. Initial page load -> gapi API onload mechanism -> gapi_loaded() -> onHashChange(). 
+     *    For anything that needs to happen for all navigation changes, favor waiting for gapi_loaded()
+     *    to be called to minimize duplication in DOMContentLoaded event. One-off operations can happen
+     *    in the latter.
+     * 2. After initial page load, hash location change -> onHashChange().
+     *    Any important change in page state will result in a hash change with hash arguments holding
+     *    the critical state.
+     *    
+     * All common navigation change handling starts in onHashChange().
+     */
+    
+    function applyHashArgIfDefined(obj, key) {
+      var value = url('#" + key); 
+      if (value !== undefined) {
+        obj[key] = value;
+      }
+    }
+    
+    function hashArgsToLocationString(hashArgs) {
+      var newLocation = '#' + Object.entries(hashArgs)
+        .map(kvPair => kvPair[0] + '=' + kvPair[1])
+        .join("&");
+      return newLocation;
+    }
+    
+    var PERSISTENT_HASH_ARGS = [
+      'api_key',
+      'client_id',
+      'parent_filter_set'
+    ]
+    function getPersistentHashArgs() {
+      var hashArgs = {};
+      PERSISTENT_HASH_ARGS
+        .forEach(arg => applyHashArgIfDefined(hashArgs, arg));
+      return hashArgs;
+    }
+    
+    /** Updates nav links based on "persistent" state. */
+    function updateNav() {
+      var persistentHashArgs = getPersistentHashArgs();
+      document.getElementById('shots-nav').href =
+        hashArgsToLocationString(
+          {...persistentHashArgs, view: 'list'}
+        );
+    }
+    
+    # The main feeder for location changes.
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
+      
+      updateNav();
     
       // Shift in all parameters now, incase there is another hash change.
       var apiKey = url('#api_key');
@@ -899,7 +957,15 @@
 
 </head>
 <body>
-  <div class="title">SHOTS</div>
+  <a id="shots-nav" href=""><span class="odd-nav">shots</span></a>
+  <span class="even-nav">last</span>
+  <span class="odd-nav">yesterday</span>
+  <span class="even-nav">-10</span>
+  <span class="odd-nav">-50</span>
+  <span class="even-nav">-100</span>
+  <span class="odd-nav">first</span>
+  <br>
+
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
   <select id="shot-file-select">
   </select>
