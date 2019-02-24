@@ -394,34 +394,53 @@
     /** Updates nav links based on "persistent" state. */
     function updateNav() {
       var persistentHashArgs = getPersistentHashArgs();
+      // List
       document.getElementById('shots-nav').href =
         hashToLocationString(
           {...persistentHashArgs, view: 'list'}
         );
+      
+      // Absolute links.
       document.getElementById('last-nav').href =
         hashToLocationString(
           {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-1'}
-        );      
+        );
       document.getElementById('yesterday-nav').href =
         hashToLocationString(
           {...persistentHashArgs, redirect: 'yesterday'}
         );
-      document.getElementById('minus-10-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-10'}
-        );      
-      document.getElementById('minus-50-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-50'}
-        );      
-      document.getElementById('minus-100-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-100'}
-        );      
       document.getElementById('first-nav').href =
         hashToLocationString(
           {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '0'}
-        );      
+        );
+
+      // Relative links.
+      var shot_file_id = url('#shot_file_id');
+      if (shot_file_id !== undefined) {
+        document.getElementById('minus-10-nav').href =
+          hashToLocationString(
+            {...persistentHashArgs, redirect: 'relative_index', relative_index: '-10', shot_file_id: shot_file_id}
+          );
+        /*
+        document.getElementById('minus-50-nav').href =
+          hashToLocationString(
+            {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-50'}
+          );      
+        document.getElementById('minus-100-nav').href =
+          hashToLocationString(
+            {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-100'}
+          );
+        */
+        document.getElementById('prev-nav').href =
+          hashToLocationString(
+            {...persistentHashArgs, redirect: 'relative_index', relative_index: '-1', shot_file_id: shot_file_id}
+          );
+        document.getElementById('next-nav').href =
+          hashToLocationString(
+            {...persistentHashArgs, redirect: 'relative_index', relative_index: '1', shot_file_id: shot_file_id}
+          );
+      }
+      
     }
     
     function maybeShowApiForm(apiKey, clientId) {
@@ -505,6 +524,36 @@
                   realIndex = undefined;
                 }
                 break;
+                
+              case 'relative_index':
+                var n = shotFileMetadatas.length;
+                var shotFileId = url('#shot_file_id');
+                if (shotFileId === undefined) {
+                  break; // Default to listing.
+                }
+                var startingIndex =
+                    shotFileMetadatas.findIndex(metadata => metadata.fileId === shotFileId);
+                if (startingIndex === -1) {
+                  break; // Default to listing.
+                }
+                var relativeIndex = Number(url('#relativeIndex')); // TODO: sanitize to integer
+                var absoluteIndex = startingIndex + relativeIndex;
+                if (absoluteIndex < 0) {
+                  realIndex = n + absoluteIndex;
+                  if (realIndex < 0) {
+                    realIndex = 0;
+                  }
+                } else if (absoluteIndex >= n) {
+                  realIndex = n-1;
+                }
+                if (realIndex < 0) {
+                  // There's zero shots for some reason.
+                  realIndex = undefined;
+                }
+                break;
+                
+              default:
+                break; // Default to listing.
             }
             var hashArgs = getPersistentHashArgs();
             if (realIndex === undefined) {
@@ -585,6 +634,7 @@
             function(shotFileMetadatas) {
               // File listing
               console.log(shotFileMetadatas);
+              shotFileMetadatas.reverse();
               var shotFileIdsToListingLabels = mapShotFileIdsToListingLabels(shotFileMetadatas);
               shotFileMetadatas.forEach(
                 (metadata) => {
@@ -1100,10 +1150,12 @@
   <a id="shots-nav"><span class="odd-nav">shots</span></a>
   <a id="last-nav"><span class="even-nav">last</span></a>
   <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
-  <a id="minus-10-nav"><span class="even-nav">-10</span></a>
-  <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
-  <a id="minus-100-nav"><span class="even-nav">-100</span></a>
-  <a id="first-nav"><span class="odd-nav">first</span></a>
+  <a id="first-nav"><span class="even-nav">first</span></a>
+  <a id="minus-10-nav"><span class="odd-nav">-10</span></a>
+  <!-- <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
+  <a id="minus-100-nav"><span class="even-nav">-100</span></a> -->
+  <a id="prev-nav"><span class="even-nav">-1</span></a> -->
+  <a id="next-nav"><span class="odd-nav">+1</span></a> -->
   <br>
 
   <div id="api-form-container" hidden>
