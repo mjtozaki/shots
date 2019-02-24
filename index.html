@@ -277,7 +277,7 @@
                         if (result === null) {
                           console.log(`Failed to find datetime of shot file ${shotFile.name} (${shotFile.fileId}).`);
                         } else {
-                          datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
+                          datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
                         }
 
                         // Extract parents metadata.
