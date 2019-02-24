@@ -545,7 +545,7 @@
                 if (startingIndex === -1) {
                   break; // Default to listing.
                 }
-                var relativeIndex = Number(url('#relativeIndex')); // TODO: sanitize to integer
+                var relativeIndex = Number(url('#relative_index')); // TODO: sanitize to integer
                 var absoluteIndex = startingIndex + relativeIndex;
                 if (absoluteIndex < 0) {
                   realIndex = n + absoluteIndex;
