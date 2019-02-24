@@ -415,9 +415,13 @@
         );
 
       // Relative links.
+      var minus10Nav = document.getElementById('minus-10-nav');
+      var prevNav = document.getElementById('prev-nav');
+      var nextNav = document.getElementById('next-nav');
       var shot_file_id = url('#shot_file_id');
       if (shot_file_id !== undefined) {
-        document.getElementById('minus-10-nav').href =
+        minus10Nav.hidden = false;
+        minus10Nav.href =
           hashToLocationString(
             {...persistentHashArgs, redirect: 'relative_index', relative_index: '-10', shot_file_id: shot_file_id}
           );
@@ -431,16 +435,21 @@
             {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-100'}
           );
         */
-        document.getElementById('prev-nav').href =
+        prevNav.hidden = false;
+        prevNav.href =
           hashToLocationString(
             {...persistentHashArgs, redirect: 'relative_index', relative_index: '-1', shot_file_id: shot_file_id}
           );
-        document.getElementById('next-nav').href =
+        nextNav.hidden = false;
+        nextNav.href =
           hashToLocationString(
             {...persistentHashArgs, redirect: 'relative_index', relative_index: '1', shot_file_id: shot_file_id}
           );
+      } else {
+        minus10Nav.hidden = true;
+        prevNav.hidden = true;
+        nextNav.hidden = true;
       }
-      
     }
     
     function maybeShowApiForm(apiKey, clientId) {
