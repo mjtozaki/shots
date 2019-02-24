@@ -45,6 +45,11 @@
       font-family: 'Roboto', sans-serif;
       font-weight: 300;
     }
+    
+    .listing-entry {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+    }
 
     .shot_plot {
       /* Force a ratio of 5:1 for all <div>
@@ -540,6 +545,11 @@
           defaultOpt.value = '';
           defaultOpt.innerHTML = '-- Shot Files --';
           shotFileSelect.appendChild(defaultOpt);
+          // Reset state of list container
+          var listingContainer = document.getElementById('listing-container');
+          while (listingContainer.firstChild) {
+            listingContainer.removeChild(listingContainer.firstChild);
+          }
           
           // Async.
           whenAuthed.then(
@@ -565,6 +575,12 @@
                   var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
                   opt.innerHTML = listingLabel.timeLabel + listingLabel.fileSystemLabel;
                   shotFileSelect.appendChild(opt);
+                  
+                  // Append to listing container
+                  var entry = document.createElement('div');
+                  entry.innerHTML = `<h3>${listingLabel.timeLabel}</h3><br><h4>${listingLabel.fileSystemLabel}</h4>`;
+                  entry.className = 'listing-entry';
+                  listingContainer.appendChild(entry);
                 });
             },
             function() {
