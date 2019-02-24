@@ -574,7 +574,7 @@
           whenAuthed.then(
             function() {
               console.log('listShotFiles??');
-              return GapiWrapper.listShotFiles();
+              return GapiWrapper.listShotFiles(getParentFilterSet());
             },
             function() {
               // Throw.
