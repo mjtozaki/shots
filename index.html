@@ -297,7 +297,7 @@
                         return new ShotFileMetadata(shotFile.id, shotFile.name, parents, datetime);                      
                       })
                     .sort(
-                      (first, second) => first.datetime < second.datetime);
+                      (first, second) => first.datetime.getTime() - second.datetime.getTime());
                 },
                 function() {
                   // Throw.
