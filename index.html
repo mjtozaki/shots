@@ -582,7 +582,11 @@
                   
                   // Append to listing container
                   var entry = document.createElement('div');
-                  entry.innerHTML = `<h3>${listingLabel.timeLabel}</h3><h4>${listingLabel.fileSystemLabel}</h4>`;
+                  var shotLinkHash = getPersistentHashArgs();
+                  shotLinkHash['view'] = 'single';
+                  shotLinkHash['shot_file_id'] = metadata.fileId;
+                  var shotLink = hashToLocationString(shotLinkHash);
+                  entry.innerHTML = `<a href="${shotLink}"><h3>${listingLabel.timeLabel}</h3><h4>${listingLabel.fileSystemLabel}</h4></a>`;
                   entry.className = 'listing-entry';
                   listingContainer.appendChild(entry);
                 });
