@@ -81,15 +81,29 @@
   <script type="text/javascript">
     "use strict";
     
-    class FileMetadata {
-      constructor(fileId, name, parents) {
-        this.fileId = fileId;
-        this.name = name;
-        this.parents = parents;
-        this.friendlyName = null;
-      }
+    // Parse the date out of shot file filenames.
+    // Assume file will CONTAIN this pattern, not exactly match.
+    // A user may edit filename, but is expected to leave datetime intact.
+    // Example filename: "20190202T141820.shot" or "freds_20190202T141820.shot"
+    const SHOTFILE_DATETIME_PATTERN = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/i;
+
+    class DirectoryMetadata {
+       constructor(fileId, name) {
+         this.fileId = fileId;
+         this.name = name;
+       }
     }
     
+    class ShotFileMetadata {
+      constructor(fileId, name, parents, datetime) {
+        this.fileId = fileId;
+        this.name = name;
+        this.parents = parents; // DirectoryMetadata[]
+        this.datetime = datetime;
+        this.friendlyName = null; // TODO: remove. layer breaking.
+      }
+    }
+
     // TODO: locking
     class _GapiWrapper {
       constructor() {
@@ -185,13 +199,25 @@
       }
       
       /** Use once authenticated and authorized. */
-      listShotFiles() {
+      listShotFiles(parentFilterSet) {
         console.log('Requesting files.list');
+        var q = "name contains '.shot'";
+        if (parentFilterSet.size > 0) {
+          q += " and (";
+          var delimiter = '';
+          parentFilterSet.forEach(
+            parent => {
+              // Overcollects to all files where any ancestor matches the filter.
+              q += delimiter + `${parent} in parents`;
+              delimiter = ' or ';
+            });
+          q += ")";
+        }
         return gapi.client.request({
           'path': 'https://www.googleapis.com/drive/v3/files',
           'params': {
             'spaces': 'drive' /*,appDataFolder*/,
-            'q': "name contains '.shot'",
+            'q': q,
             'fields': 'nextPageToken,files(id,name,parents)',
           },
         })
@@ -201,7 +227,15 @@
             // File listing
             console.log(response);
 
-            var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
+            var shotFiles = response.result.files.filter(
+              file => {
+                if (!file.name.endsWith('.shot')) {
+                  return false;
+                }
+                return parentFilterSet.size == 0 ||
+                  file.parents.length == 0 ||
+                  parentFilterSet.has(file.parents[file.parents.length - 1]);
+              });
             console.log(shotFiles);
             
             var parents = new Set(
@@ -229,14 +263,36 @@
                   
                   var parentIdToResourceMapping = response.result;
                   
-                  return shotFiles.map(
-                    shotFile => {
-                      // TODO: propagate parentId as well.
-                      var parents = shotFile.parents.map(
-                        parentId => parentIdToResourceMapping[parentId].result.name);
-                      var metadata = new FileMetadata(shotFile.id, shotFile.name, parents);
-                      return metadata;
-                    });
+                  return shotFiles
+                    .map(
+                      shotFile => {
+                        // Exact file datetime.
+                        var datetime = null;
+                        var result = SHOTFILE_DATETIME_PATTERN.exec(shotFile.name);
+                        if (result === null) {
+                          console.log(`Failed to find datetime of shot file ${shotFile.name} (${shotFile.fileId}).`);
+                        } else {
+                          datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
+                        }
+
+                        // Extract parents metadata.
+                        var parentIdToDirectoryMetadata = new Map();
+                        Object.keys(parentIdToResourceMapping)
+                          .forEach(parentId => {
+                            parentIdToDirectoryMetadata.set(
+                              parentId,
+                              new DirectoryMetadata(
+                                parentId,
+                                parentIdToResourceMapping[parentId].result.name));
+                          });
+
+                        // Then create arrays of them for files
+                        var parents = shotFile.parents.map(
+                          parentId => parentIdToDirectoryMetadata.get(parentId));
+                        return new ShotFileMetadata(shotFile.id, shotFile.name, parents, datetime);                      
+                      })
+                    .sort(
+                      (first, second) => first.datetime < second.datetime);
                 },
                 function() {
                   // Throw.
@@ -338,25 +394,102 @@
       return false;
     }
     
+    /** Returns a Set of parent filters. The Set is empty if there's no parent filters. */
+    funcction getParentFilterSet() {
+      var parent_filter_set_raw = url('#parent_filter_set');
+      if (parent_filter_set_raw === undefined) {
+        return new Set();
+      }
+      var parentFilterSet = new Set(parent_filter_set_raw.split(','));
+      return parentFilterSet;
+    }
+    
+    function redirectLocation(apiKey, clientId, redirect) {
+      var parentFilterSet = getParentFilterSet();
+      GapiWrapper.ensureApiKeyAndClientIdAuthed(apiKey, clientId)
+        .then(
+          function() {
+            console.log('listShotFiles??');
+            return GapiWrapper.listShotFiles(parentFilterSet);
+          },
+          function() {
+            // Throw.
+            console.log('Auth failed apparently.');
+          }
+        )
+        .then(
+          function(shotFileMetadatas) {
+            // Convert redirects from indirect reference to absolute shot index.
+            var realIndex = undefined;
+            switch (redirect) {
+              // TODO: maybe develop into day and day index. or month and month index
+              case 'yesterday':
+                // Go backwards through listing until you find anything before today.
+                var now = new Date(Date.now());
+                var todayThreshold = new Date(now.getYear(), now.getMonth(), now.getDate()).getTime();
+                for (let i = shotFileMetadatas.length - 1; i != 0; --i) {
+                  var metadata = shotFileMetadatas[i];
+                  if (metadata.datetime.getTime() < todayThreshold) {
+                    // Last shot that didn't happen today.
+                    realIndex = i;
+                    break;
+                  }
+                }
+                // Let realIndex = undefined fall through.
+                break;
+              case 'absolute_index': // Lack of better name
+                // 0: first
+                // n-1: last
+                // inf: last
+                // -1: last
+                // -n: first
+                // -inf: first
+                var n = shotFileMetadatas.length;
+                var absoluteIndex = Number(url('#absolute_index')); // TODO: sanitize to integer
+                if (absoluteIndex < 0) {
+                  realIndex = n + absoluteIndex;
+                  if (realIndex < 0) {
+                    realIndex = 0;
+                  }
+                } else if (absoluteIndex >= n) {
+                  realIndex = n-1;
+                }
+                if (realIndex < 0) {
+                  // There's zero shots for some reason.
+                  realIndex = undefined;
+                }
+                break;
+            }
+            var hashArgs = getPersistentHashArgs();
+            if (realIndex === undefined) {
+              // No shots. Let's just do a listing instead.
+              hashArgs['view'] = 'list';
+            } else {
+              // Translate to fileId.
+              var fileId = shotFileMetadatas[realIndex].fileId;
+              hashArgs['view'] = 'single';
+              hashArgs['shot_file_id'] = fileId;
+            }
+            replaceLocationWithHash(hashArgs);
+            // Queue hash change.
+            Promise.resolve(true).then(() => onHashChange());
+          });
+    }
+    
+    /* missing api_key or client_id beats everything else
+     * redirect beats view
+     */
+    
     // The main feeder for location changes.
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
       
-      // Redirects
-      var redirect = url('#redirect');
-      if (redirect !== undefined) {
-        // TODO: get list of files (filtered by parent_set) then index by redirect
-        // TDOO: consider caching implications. always refresh, or reuse in-page cache.
-      }
-
-      
       updateNav();
-    
+
       // Shift in all parameters now, incase there is another hash change.
       var apiKey = url('#api_key');
       var clientId = url('#client_id');
       var view = url('#view');
-      var shotFileId = url('#shot_file_id');
       
       // Default view mode.
       if (view === undefined) {
@@ -367,6 +500,15 @@
         return;
       }
       
+      // Redirects
+      var redirect = url('#redirect');
+      if (redirect !== undefined) {
+        // TODO: get list of files (filtered by parent_set) then index by redirect
+        // TDOO: consider caching implications. always refresh, or reuse in-page cache.
+        redirectLocation(apiKey, clientId, redirect);
+        return;
+      }
+
       // Async acquiring authorization.
       var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(apiKey, clientId);
       
@@ -397,16 +539,15 @@
           .then(
             function(shotFileMetadatas) {
               // File listing
-//               console.log(response.result);
-
-//               var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
               console.log(shotFileMetadatas);
-              var prettyMetadatas = orderAndLabelShotFileMetadatas(shotFileMetadatas);
-              prettyMetadatas.forEach(
+              var shotFileIdsToListingLabels = mapShotFileIdsToListingLabels(shotFileMetadatas);
+              shotFileMetadatas.forEach(
                 (metadata) => {
                   var opt = document.createElement('option');
                   opt.value = metadata.fileId;
-                  opt.innerHTML = metadata.friendlyName;
+                  // For now, this will do.
+                  var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
+                  opt.innerHTML = listingLabel.timeLabel + listingLabel.fileSystemLabel;
                   shotFileSelect.appendChild(opt);
                 });
             },
@@ -418,6 +559,8 @@
           break;
 
         case 'single':
+          var shotFileId = url('#shot_file_id');
+          
           // Can arrange DOM immediately.
           if (shotFileId === undefined) {
             // Throw.
@@ -466,39 +609,61 @@
 //       console.log('Loading gapi');
 //       gapi.load('client:auth2', initClient);
     }
-    
-    function orderAndLabelShotFileMetadatas(metadatas) {
-      // Parse the date out of each file name and sort by that key.
-      // Assume file will CONTAIN this pattern, not exactly match.
-      // A user may edit filename, but is expected to leave datetime intact.
-      // Example filename: 20190202T141820.shot
-      var datetimeRegex = /(\d\d\d\d)(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)/i;
-      var datetimeToMetadata = new Map();
-      metadatas.forEach(
-        metadata => {
-          var result = datetimeRegex.exec(metadata.name);
-          if (result === null) {
-            // Throw
-            console.log(`Failed to find datetime of shot file ${metadata.name} (${metadata.fileId}).`);
-            return;
+      
+    /** Returns Map of locale date (clock time) to ShotFileMetadata (preserves order). */
+    function groupShotsByDate(metadatas) {
+      return metadatas.reduce( // Groupby date.
+        (groupings, metadata) => {
+          var date = new Date(
+            metadata.datetime.getYear(), metadata.datetime.getMonth(), metadata.datetime.getDate());
+          // valueOf() for correct key equality mechanics.
+          if (!groupings.has(date.valueOf())) {
+            groupings.set(date.valueOf(), []);
           }
-          var datetime = new Date(result[1], result[2], result[3], result[4], result[5], result[6]);
-          datetimeToMetadata.set(datetime, metadata);
-          
-          var parentsPath = metadata.parents.join('/');
-          metadata.friendlyName = `${parentsPath}/${metadata.name}`;
+          grouping = groupings.get(date.valueOf()).push(metadata);
+        },
+        new Map());
+    }
+      
+    // TODO: breakdown:
+    //       make struct with information important to display (e.g. # shot of day), but render UI later with a renderer class.
+    /**
+     * timeLabel: label indicating time-oriented information about shot.
+     * fileSystemLabel: label indicating filesystem-oriented information about shot. 
+     */
+    class ShotListingLabel {
+      constructor(timeLabel, fileSystemLabel) {
+        this.timeLabel = timeLabel;
+        this.fileSystemLabel = fileSystemLabel;
+      }
+    }
+      
+    /** shotFileMetadatas must be ordered in ascending datetime. */
+    function mapShotFileIdsToListingLabels(shotFileMetadatas) {
+      var mapping = new Map();
+      groupShotsByDate(shotFileMetadatas)
+        .forEach((grouping, epochTime) => {
+          var date = new Date(epochTime);
+          var timeLabelPrefix = `${date.toDateString()}`;
+          for (let i of grouping.keys()) {
+            var metadata = grouping[i];
+            // e.g. Wed Jul 28 1993 #3 (23:15:30 GMT+0200 (CEST))
+            var timeLabel = timeLabelPrefix + ` #${i+1} (${metadata.datetime.toTimeString()})`;
+            // e.g. path/to/shotfile.shot
+            var fileSystemLabel =
+                metadata.parents
+                  .map(parent => parent.name)
+                  .join('/')
+                + `/${metadata.name}`;
+            mapping.set(metadata.fileId, new ShotListingLabel(timeLabel, fileSystemLabel));
+          }
         });
-      
-      // TODO: group by parents hierarchy.
-
-      // TODO: friendly name like YYYY-MM-DD Shot #3 (HH:MM:SS). Shot # should be function of number of shots prior, in the same day, in the same folder.
-      
-      // Sort.
-      return [...datetimeToMetadata.keys()].sort().reverse().map(
-        datetime => datetimeToMetadata.get(datetime));
+      return mapping;
     }
     
-    
+    function replaceLocationWithHash(params) {
+      window.history.replaceState({}, '', hashToLocationString(params));
+    }
     // Setup other static stuff.
     function gotoHash(params) {
       window.location = hashToLocationString(params);
