@@ -594,6 +594,7 @@
                   shotLinkHash['view'] = 'single';
                   shotLinkHash['shot_file_id'] = metadata.fileId;
                   var shotLink = hashToLocationString(shotLinkHash);
+                  var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
                   entry.innerHTML = `<a href="${shotLink}"><h3>${listingLabel.timeLabel}</h3><h4>${listingLabel.fileSystemLabel}</h4></a>`;
                   entry.className = 'listing-entry';
                   listingContainer.appendChild(entry);
