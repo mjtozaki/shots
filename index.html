@@ -422,6 +422,10 @@
       return parentFilterSet;
     }
     
+    function dateWithoutTime(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+    
     function redirectLocation(apiKey, clientId, redirect) {
       var parentFilterSet = getParentFilterSet();
       GapiWrapper.ensureApiKeyAndClientIdAuthed(apiKey, clientId)
@@ -444,7 +448,7 @@
               case 'yesterday':
                 // Go backwards through listing until you find anything before today.
                 var now = new Date(Date.now());
-                var todayThreshold = new Date(now.getYear(), now.getMonth(), now.getDate()).getTime();
+                var todayThreshold = dateWithoutTime(now).getTime();
                 for (let i = shotFileMetadatas.length - 1; i != 0; --i) {
                   var metadata = shotFileMetadatas[i];
                   if (metadata.datetime.getTime() < todayThreshold) {
@@ -646,13 +650,12 @@
     function groupShotsByDate(metadatas) {
       return metadatas.reduce( // Groupby date.
         (groupings, metadata) => {
-          var date = new Date(
-            metadata.datetime.getYear(), metadata.datetime.getMonth(), metadata.datetime.getDate());
           // valueOf() for correct key equality mechanics.
-          if (!groupings.has(date.valueOf())) {
-            groupings.set(date.valueOf(), []);
+          var dateEpoch = dateWithoutTime(metadata.datetime).valueOf();
+          if (!groupings.has(dateEpoch)) {
+            groupings.set(dateEpoch, []);
           }
-          grouping = groupings.get(date.valueOf()).push(metadata);
+          grouping = groupings.get(dateEpoch).push(metadata);
         },
         new Map());
     }
