@@ -655,7 +655,8 @@
           if (!groupings.has(dateEpoch)) {
             groupings.set(dateEpoch, []);
           }
-          grouping = groupings.get(dateEpoch).push(metadata);
+          groupings.get(dateEpoch).push(metadata);
+          return groupings;
         },
         new Map());
     }
