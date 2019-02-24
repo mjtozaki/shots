@@ -398,6 +398,30 @@
         hashToLocationString(
           {...persistentHashArgs, view: 'list'}
         );
+      document.getElementById('last-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-1'}
+        );      
+      document.getElementById('yesterday-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'yesterday'}
+        );
+      document.getElementById('minus-10-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-10'}
+        );      
+      document.getElementById('minus-50-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-50'}
+        );      
+      document.getElementById('minus-100-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-100'}
+        );      
+      document.getElementById('first-nav').href =
+        hashToLocationString(
+          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '0'}
+        );      
     }
     
     function maybeShowApiForm(apiKey, clientId) {
@@ -629,9 +653,6 @@
     function gapi_loaded() {
       // Call for initial page load.
       onHashChange();
-
-//       console.log('Loading gapi');
-//       gapi.load('client:auth2', initClient);
     }
       
     /** Returns Map of locale date (clock time) to ShotFileMetadata (preserves order). */
@@ -1067,118 +1088,6 @@
         }
       }
     }
-    
-    
-    
-//     function initClient() {
-//       console.log('Loaded gapi');
-      
-//       var good = true;
-//       var apiKey = url('#api_key');
-//       var clientId = url('#client_id');
-      
-//       if (apiKey === undefined) {
-//         window.alert("api_key parameter must be set.");
-//         good = false;
-//       }
-//       if (clientId === undefined) {
-//         window.alert("client_id parameter must be set.");
-//         good = false;
-//       }
-//       if (!good) {
-//         return;
-//       }
-
-//       // 2. Initialize the JavaScript client library.
-//       gapi.client.init({
-//         'apiKey': apiKey,
-//         // Your API key will be automatically added to the Discovery Document URLs.
-// //         'discoveryDocs': ['https://people.googleapis.com/$discovery/rest'],
-//         // clientId and scope are optional if auth is not required.
-//         'clientId': clientId,
-//         'scope': SCOPE,
-//       })
-//         .then(
-//           function() {
-//             var needToSignIn = true;
-//             GoogleAuth = gapi.auth2.getAuthInstance();
-//             if (GoogleAuth.isSignedIn.get()) {
-//               var user = GoogleAuth.currentUser.get();
-//               var isAuthorized = user.hasGrantedScopes(SCOPE);
-//               if (!isAuthorized) {
-//                 console.log("Signed in and not authorized.");
-//               } else {
-//                 needToSignIn = false;
-//                 console.log("Signed in and authorized!");
-//               }
-//             } else {
-//               console.log("Not signed in.");
-//             }
-//             if (needToSignIn) {
-//               return GoogleAuth.signIn({
-// //                 'prompt': 'consent',
-//               });
-//             }
-//             return Promise.resolve("doesn't matter");
-//           })
-//         .then(
-//           function() {
-//             // 3. Initialize and make the API request.
-//             console.log('Requesting files.list');
-//             return gapi.client.request({
-//               'path': 'https://www.googleapis.com/drive/v3/files',
-//               'params': {
-//                 'spaces': 'drive' /*,appDataFolder*/,
-//                 'q': "name contains '.shot'",
-//               },
-//             });
-//           },
-//           function(reason) {
-//             console.log('Error: ' + reason);
-//     //         console.log('Error: ' + reason.result.error.message);
-//           })
-//         .then(
-//           function(response) {
-//             // File listing
-//             console.log(response.result);
-            
-//             var shotFiles = response.result.files.filter(file => file.name.endsWith('.shot'));
-//             console.log(shotFiles);
-            
-//             // Now take first result and lets get its contents
-//             var fileId = shotFiles[0].id;
-//             return gapi.client.request({
-//               'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
-//               'params': {
-//                  'alt': 'media',
-//               },
-//             });
-//           },
-//           function(reason) {
-//             console.log('Error: ' + reason.result.error.message);
-//           })
-//         .then(
-//           function(response) {
-//             console.log(response);
-//             //$("#file_contents").html(textToHtml(response.body));
-            
-//             var shot = shotFromShotFileContents(response.body);
-//             shot.renderText($("#file_contents"));
-            
-//             var plot = document.getElementById('shot_plot');
-//             shot.renderPlot(plot);
-
-//           },
-//           function(reason) {
-//             console.log('Error: ' + reason);
-// //             console.log('Error: ' + reason.result.error.message);
-//           });
-
-//     }
-    
-    function textToHtml(text) {
-      return text.replace(new RegExp('\n', 'g'), '<br>');
-    }
   </script>
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -1186,13 +1095,13 @@
 
 </head>
 <body>
-  <a id="shots-nav" href=""><span class="odd-nav">shots</span></a>
-  <span class="even-nav">last</span>
-  <span class="odd-nav">yesterday</span>
-  <span class="even-nav">-10</span>
-  <span class="odd-nav">-50</span>
-  <span class="even-nav">-100</span>
-  <span class="odd-nav">first</span>
+  <a id="shots-nav"><span class="odd-nav">shots</span></a>
+  <a id="last-nav"><span class="even-nav">last</span></a>
+  <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
+  <a id="minus-10-nav"><span class="even-nav">-10</span></a>
+  <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
+  <a id="minus-100-nav"><span class="even-nav">-100</span></a>
+  <a id="first-nav"><span class="odd-nav">first</span></a>
   <br>
 
   <div id="api-form-container" hidden>
