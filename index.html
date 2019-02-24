@@ -346,6 +346,20 @@
      * All common navigation change handling starts in onHashChange().
      */
     
+    var VIEW_NAMES_TO_CONTAINER_IDS = {
+      api_form: 'api-form-container',
+      list: 'listing-container',
+      single: 'single-shot-container'
+    };
+    function activateViewContainer(viewNameToActivate) {
+      var containerIdToActivate = VIEW_NAMES_TO_CONTAINER_IDS[viewNameToActivate];
+      document.getElementById(containerIdToActivate).hidden = false;
+      VIEW_NAMES_TO_CONTAINER_IDS.keys()
+        .filter(viewName => viewName !== viewNameToActivate)
+        .forEach(viewName =>
+                 document.getElementById(VIEW_NAMES_TO_CONTAINER_IDS[viewName]).hidden = true);
+    }
+    
     function applyHashArgIfDefined(obj, key) {
       var value = url('#' + key); 
       if (value !== undefined) {
@@ -383,14 +397,13 @@
     
     function maybeShowApiForm(apiKey, clientId) {
       // TODO: manage showing/hiding sets of controls better.
-      var apiFormContainer = document.getElementById('api-form-container');
       if (apiKey === undefined || clientId === undefined) {
+        activateViewContainer('api_form');
         apiFormContainer.hidden = false;
         document.getElementById('api-form-api-key').value = (apiKey === undefined) ? "" : apiKey;
         document.getElementById('api-form-client-id').value = (clientId === undefined) ? "" : clientId;
         return true;
       }
-      apiFormContainer.hidden = true;
       return false;
     }
     
@@ -499,6 +512,9 @@
       if (maybeShowApiForm(apiKey, clientId)) {
         return;
       }
+      
+      // TODO: further sanitize view
+      activateViewContainer(view);
       
       // Redirects
       var redirect = url('#redirect');
@@ -1201,8 +1217,13 @@
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
   <select id="shot-file-select">
   </select>
+  
+  <div id="listing-container" hidden>
+  </div>
 
-  <div class="shot_plot" id="shot_plot"></div>
-  <div class="shot_text" id="file_contents"></div>
+  <div id="single-shot-container" hidden>
+    <div class="shot_plot" id="shot_plot"></div>
+    <div class="shot_text" id="file_contents"></div>
+  </div>
 </body>
 </html>
