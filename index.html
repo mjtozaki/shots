@@ -527,6 +527,8 @@
                   }
                 } else if (absoluteIndex >= n) {
                   realIndex = n-1;
+                } else {
+                  realIndex = absoluteIndex;
                 }
                 if (realIndex < 0) {
                   // There's zero shots for some reason.
@@ -554,6 +556,8 @@
                   }
                 } else if (absoluteIndex >= n) {
                   realIndex = n-1;
+                } else {
+                  realIndex = absoluteIndex;
                 }
                 if (realIndex < 0) {
                   // There's zero shots for some reason.
