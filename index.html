@@ -359,7 +359,7 @@
     function activateViewContainer(viewNameToActivate) {
       var containerIdToActivate = VIEW_NAMES_TO_CONTAINER_IDS[viewNameToActivate];
       document.getElementById(containerIdToActivate).hidden = false;
-      VIEW_NAMES_TO_CONTAINER_IDS.keys()
+      Object.keys(VIEW_NAMES_TO_CONTAINER_IDS)
         .filter(viewName => viewName !== viewNameToActivate)
         .forEach(viewName =>
                  document.getElementById(VIEW_NAMES_TO_CONTAINER_IDS[viewName]).hidden = true);
