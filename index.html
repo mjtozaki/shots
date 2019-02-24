@@ -643,8 +643,8 @@
             function(shotFileMetadatas) {
               // File listing
               console.log(shotFileMetadatas);
-              shotFileMetadatas.reverse();
               var shotFileIdsToListingLabels = mapShotFileIdsToListingLabels(shotFileMetadatas);
+              shotFileMetadatas.reverse();
               shotFileMetadatas.forEach(
                 (metadata) => {
                   // Append to listing container
