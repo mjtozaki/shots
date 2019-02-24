@@ -540,15 +540,6 @@
       switch (view) {
         case 'list':
           // Can arrange DOM immediately.
-          var shotFileSelect = document.getElementById('shot-file-select');
-          // Reset state of select.
-          while (shotFileSelect.firstChild) {
-            shotFileSelect.removeChild(shotFileSelect.firstChild);
-          }
-          var defaultOpt = document.createElement('option');
-          defaultOpt.value = '';
-          defaultOpt.innerHTML = '-- Shot Files --';
-          shotFileSelect.appendChild(defaultOpt);
           // Reset state of list container
           var listingContainer = document.getElementById('listing-container');
           while (listingContainer.firstChild) {
@@ -573,13 +564,6 @@
               var shotFileIdsToListingLabels = mapShotFileIdsToListingLabels(shotFileMetadatas);
               shotFileMetadatas.forEach(
                 (metadata) => {
-                  var opt = document.createElement('option');
-                  opt.value = metadata.fileId;
-                  // For now, this will do.
-                  var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
-                  opt.innerHTML = listingLabel.timeLabel + listingLabel.fileSystemLabel;
-                  shotFileSelect.appendChild(opt);
-                  
                   // Append to listing container
                   var entry = document.createElement('div');
                   var shotLinkHash = getPersistentHashArgs();
@@ -720,8 +704,6 @@
     }
     
     document.addEventListener('DOMContentLoaded',function() {
-      document.querySelector('select[id="shot-file-select"]').onchange = shotFileSelectChanged;
-      
       // Setup api form handlers.
       document.getElementById('api-form-set').onclick = function() {
         var api_key = document.getElementById('api-form-api-key').value;
@@ -742,17 +724,6 @@
 
     }, false);
 
-    function shotFileSelectChanged(event) {
-      if (event.target.value === '') {
-        return;
-      }
-      var fileId = event.target.value;
-      gotoSingleShot(fileId);
-    }
-
-
-
-    
     /* Based upon:
      *  -http://ryanogles.by/an-exploration-of-javascript-builders/
      *  -https://medium.com/@axelhadfeg/builder-pattern-using-javascript-and-es6-ec1539182e24
@@ -1239,8 +1210,6 @@
     </form>
   </div>
   <!-- <button onclick="appendToHash()">Append to hash</button> -->
-  <select id="shot-file-select">
-  </select>
   
   <div id="listing-container" hidden>
   </div>
