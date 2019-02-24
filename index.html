@@ -204,7 +204,7 @@
       }
       
       /** Use once authenticated and authorized. */
-      listShotFiles(parentFilterSet) {
+      listShotFiles(parentFilterSet = new Set()) {
         console.log('Requesting files.list');
         var q = "name contains '.shot'";
         if (parentFilterSet.size > 0) {
