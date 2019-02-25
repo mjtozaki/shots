@@ -235,8 +235,8 @@
         return this.whenApiKeyAndClientIdAuthed;
       }
       
-      static makeListShotFilesCacheKey(parentFilterSet) {
-        var key = 'listShotFiles,[';
+      _makeListShotFilesCacheKey(parentFilterSet) {
+        var key = `${this.activeApiKey},${this.activeClientId},listShotFiles,[`;
         key += [...parentFilterSet].sort().join(',');
         key += ']';
         return key;
@@ -244,7 +244,7 @@
       
       /** Use once authenticated and authorized. */
       listShotFiles(parentFilterSet = new Set()) {
-        var cacheKey = makeListShotFilesCacheKey(parentFilterSet);
+        var cacheKey = _makeListShotFilesCacheKey(parentFilterSet);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
           return Promise.resolve(cacheValue);
@@ -359,14 +359,14 @@
         return rpcPromise;
       }
       
-      static makeGetFileContentsCacheKey(fileId) {
-        return `getFileContents,${fileId}`;
+      _makeGetFileContentsCacheKey(fileId) {
+        return `${this.activeApiKey},${this.activeClientId},getFileContents,${fileId}`;
       }
       
       /** Use once authenticated and authorized. */
       getFileContents(fileId) {
         // TODO: implement cache size constraints to avoid cache getting too big.
-        var cacheKey = makeGetFileContentsCacheKey(fileId);
+        var cacheKey = _makeGetFileContentsCacheKey(fileId);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
           return Promise.resolve(cacheValue);
