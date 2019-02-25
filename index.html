@@ -95,7 +95,7 @@
       _has(key) {
         if (this.table.has(key)) {
           var wrapped = this.table.get(key);
-          if (Date.now() < wrapped.time + cacheDuration) {
+          if (Date.now() < wrapped.time + this.cacheDuration) {
             return true;
           }
           this.table.delete(key);
