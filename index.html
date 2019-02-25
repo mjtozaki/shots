@@ -581,8 +581,8 @@
             } else {
               // Translate to fileId.
               var fileId = shotFileMetadatas[realIndex].fileId;
-              hashQueryMap('view', 'single');
-              hashQueryMap('shot_file_id', fileId);
+              hashQueryMap.set('view', 'single');
+              hashQueryMap.set('shot_file_id', fileId);
             }
             replaceLocationWithHashQueryMap(hashQueryMap);
             // Queue hash change.
