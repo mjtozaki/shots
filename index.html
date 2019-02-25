@@ -666,7 +666,7 @@
         .filter(key => key !== 'api_key' && key !== 'client_id')
         .reduce(
           (map, key) => {
-            map.set(key, hashQuery.get(key));
+            map.set(key, hashQuery[key]);
             return map;
           },
           new Map());
