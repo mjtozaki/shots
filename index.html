@@ -643,7 +643,9 @@
           }
         }
         if (this.parentFilterSet !== null) {
-          hashQueryMap.set('parent_filter_set', this.parentFilterSet);
+          hashQueryMap.set(
+            'parent_filter_set',
+            [...this.parentFilterSet].join(','));
         }
         return hashQueryMap;
       }
