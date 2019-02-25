@@ -244,7 +244,7 @@
       
       /** Use once authenticated and authorized. */
       listShotFiles(parentFilterSet = new Set()) {
-        var cacheKey = _makeListShotFilesCacheKey(parentFilterSet);
+        var cacheKey = this._makeListShotFilesCacheKey(parentFilterSet);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
           return Promise.resolve(cacheValue);
@@ -366,7 +366,7 @@
       /** Use once authenticated and authorized. */
       getFileContents(fileId) {
         // TODO: implement cache size constraints to avoid cache getting too big.
-        var cacheKey = _makeGetFileContentsCacheKey(fileId);
+        var cacheKey = this._makeGetFileContentsCacheKey(fileId);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
           return Promise.resolve(cacheValue);
