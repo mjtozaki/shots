@@ -696,47 +696,47 @@
         clientId = hashQuery['client_id'];
       }
       if (apiKey !== null) {
-        shotsAppState.apiKey = apiKey;
+        appState.apiKey = apiKey;
       }
       if (clientId !== null) {
-        shotsAppState.clientId = clientId;
+        appState.clientId = clientId;
       }
       // Absorb auth into local storage if possible.
       if (authInHashQuery && absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery)) {
-        shotsAppState.authLocallyStored = true;
+        appState.authLocallyStored = true;
       }
       
       // Rest of the input.
       if (hashQuery['parent_filter_set'] !== undefined) {
-        shotsAppState.parentFilterSet =
+        appState.parentFilterSet =
           new Set(hashQuery['parent_filter_set'].split(','));
       }
       if (hashQuery['view'] !== undefined) {
-        shotsAppState.view = hashQuery['view'];
+        appState.view = hashQuery['view'];
       }
       // shot_file_id
       if (hashQuery['shot_file_id'] !== undefined) {
-        shotsAppState.shotFileId = hashQuery['shot_file_id'];
+        appState.shotFileId = hashQuery['shot_file_id'];
       }
       // redirect
       if (hashQuery['redirect'] !== undefined) {
-        shotsAppState.redirect = hashQuery['redirect'];
+        appState.redirect = hashQuery['redirect'];
       }
       // absolute_index
       if (hashQuery['absolute_index'] !== undefined) {
         var absoluteIndex = Number(hashQuery['absolute_index']);
         if (absoluteIndex.isInteger()) {
-          shotsAppState.absoluteIndex = absoluteIndex;
+          appState.absoluteIndex = absoluteIndex;
         }
       }
       // relative_index
       if (hashQuery['relative_index'] !== undefined) {
         var relativeIndex = Number(hashQuery['relative_index']);
         if (relativeIndex.isInteger()) {
-          shotsAppState.relativeIndex = relativeIndex;
+          appState.relativeIndex = relativeIndex;
         }
       }
-      return shotsAppState;
+      return appState;
     }
     
     /* missing api_key or client_id beats everything else
