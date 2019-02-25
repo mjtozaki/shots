@@ -103,13 +103,13 @@
         return false;
       }
       get(key) {
-        if (_has(key)) {
+        if (this._has(key)) {
           return this.table.get(key).value;
         }
         return null;
       }
       set(key, value) {
-        this.table.set(key, wrapWithTime(value));
+        this.table.set(key, TimedCache.wrapWithTime(value));
       }
       static wrapWithTime(value) {
         return {time: Date.now(), value: value};
