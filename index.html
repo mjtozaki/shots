@@ -727,14 +727,14 @@
       // absolute_index
       if (hashQuery['absolute_index'] !== undefined) {
         var absoluteIndex = Number(hashQuery['absolute_index']);
-        if (absoluteIndex.isInteger()) {
+        if (Number.isInteger(absoluteIndex)) {
           appState.absoluteIndex = absoluteIndex;
         }
       }
       // relative_index
       if (hashQuery['relative_index'] !== undefined) {
         var relativeIndex = Number(hashQuery['relative_index']);
-        if (relativeIndex.isInteger()) {
+        if (Number.isInteger(relativeIndex)) {
           appState.relativeIndex = relativeIndex;
         }
       }
