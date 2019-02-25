@@ -87,6 +87,9 @@
     "use strict";
     
     class TimedCache {
+      // TODO: cache groups with their own cache durations and element limits.
+      // e.g. parents name lookup cache should be forever (unlikely a folder will be renamed)
+      // e.g. shot file contents should be limited to something like 10 elements. And cache duration should be forever.
       constructor(cacheDuration) {
         this.cacheDuration = cacheDuration;
         this.table = new Map();
