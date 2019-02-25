@@ -372,6 +372,16 @@
       }
     }
     
+    // TODO: replace with library that converts to query string. Otherwise we are missing escaping logic.
+    function hashQueryMapToLocationString(hashQueryMap) {
+      var newLocation = '#' +
+          [...hashQueryMap.keys()]
+            .map(key => `${key}=${hashQueryMap.get(key)}`)
+            .join('&');
+      return newLocation;
+    }
+    
+    // TODO: deprecate
     function hashToLocationString(hashArgs) {
       var newLocation = '#' + Object.entries(hashArgs)
         .map(kvPair => `${kvPair[0]}=${kvPair[1]}`)
@@ -392,59 +402,56 @@
     }
     
     /** Updates nav links based on "persistent" state. */
-    function updateNav() {
-      var persistentHashArgs = getPersistentHashArgs();
+    function updateNav(appState) {
+//       var persistentHashArgs = getPersistentHashArgs();
+      var persistentHashQueryMap = appState.getPersistentHashQueryMap();
       // List
       document.getElementById('shots-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, view: 'list'}
-        );
+        hashQueryMapToLocationString(
+          new Map([...persistentHashQueryMap, ['view', 'list']]));
       
       // Absolute links.
       document.getElementById('last-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-1'}
-        );
+        hashQueryMapToLocationString(
+          new Map([...persistentHashQueryMap,
+                   ['redirect', 'absolute_index'],
+                   ['absolute_index', '-1']]));
       document.getElementById('yesterday-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'yesterday'}
-        );
+        hashQueryMapToLocationString(
+          new Map([...persistentHashQueryMap, ['redirect', 'yesterday']]));
       document.getElementById('first-nav').href =
-        hashToLocationString(
-          {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '0'}
-        );
+        hashQueryMapToLocationString(
+          new Map([...persistentHashQueryMap,
+                   ['redirect', 'absolute_index'],
+                   ['absolute_index', '0']]));
 
       // Relative links.
       var minus10Nav = document.getElementById('minus-10-nav');
       var prevNav = document.getElementById('prev-nav');
       var nextNav = document.getElementById('next-nav');
-      var shot_file_id = url('#shot_file_id');
-      if (shot_file_id !== undefined) {
+      var shot_file_id = appState.shotFileId;
+      if (shot_file_id !== null) {
         minus10Nav.hidden = false;
         minus10Nav.href =
-          hashToLocationString(
-            {...persistentHashArgs, redirect: 'relative_index', relative_index: '-10', shot_file_id: shot_file_id}
-          );
-        /*
-        document.getElementById('minus-50-nav').href =
-          hashToLocationString(
-            {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-50'}
-          );      
-        document.getElementById('minus-100-nav').href =
-          hashToLocationString(
-            {...persistentHashArgs, redirect: 'absolute_index', absolute_index: '-100'}
-          );
-        */
+          hashQueryMapToLocationString(
+            new Map([...persistentHashQueryMap,
+                     ['redirect', 'relative_index'],
+                     ['relative_index', '-10'],
+                     ['shot_file_id', shot_file_id]]));
         prevNav.hidden = false;
         prevNav.href =
-          hashToLocationString(
-            {...persistentHashArgs, redirect: 'relative_index', relative_index: '-1', shot_file_id: shot_file_id}
-          );
+          hashQueryMapToLocationString(
+            new Map([...persistentHashQueryMap,
+                     ['redirect', 'relative_index'],
+                     ['relative_index', '-1'],
+                     ['shot_file_id', shot_file_id]]));
         nextNav.hidden = false;
         nextNav.href =
-          hashToLocationString(
-            {...persistentHashArgs, redirect: 'relative_index', relative_index: '1', shot_file_id: shot_file_id}
-          );
+          hashQueryMapToLocationString(
+            new Map([...persistentHashQueryMap,
+                     ['redirect', 'relative_index'],
+                     ['relative_index', '1'],
+                     ['shot_file_id', shot_file_id]]));
       } else {
         minus10Nav.hidden = true;
         prevNav.hidden = true;
@@ -454,37 +461,36 @@
     
     function maybeShowApiForm(apiKey, clientId) {
       // TODO: manage showing/hiding sets of controls better.
-      if (apiKey === undefined || clientId === undefined) {
+      if (apiKey === null || clientId === null) {
         activateViewContainer('api_form');
         apiFormContainer.hidden = false;
-        document.getElementById('api-form-api-key').value = (apiKey === undefined) ? "" : apiKey;
-        document.getElementById('api-form-client-id').value = (clientId === undefined) ? "" : clientId;
+        document.getElementById('api-form-api-key').value = (apiKey === null) ? "" : apiKey;
+        document.getElementById('api-form-client-id').value = (clientId === null) ? "" : clientId;
         return true;
       }
       return false;
     }
     
     /** Returns a Set of parent filters. The Set is empty if there's no parent filters. */
-    function getParentFilterSet() {
-      var parent_filter_set_raw = url('#parent_filter_set');
-      if (parent_filter_set_raw === undefined) {
-        return new Set();
-      }
-      var parentFilterSet = new Set(parent_filter_set_raw.split(','));
-      return parentFilterSet;
-    }
+//     function getParentFilterSet() {
+//       var parent_filter_set_raw = url('#parent_filter_set');
+//       if (parent_filter_set_raw === undefined) {
+//         return new Set();
+//       }
+//       var parentFilterSet = new Set(parent_filter_set_raw.split(','));
+//       return parentFilterSet;
+//     }
     
     function dateWithoutTime(date) {
       return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
     
-    function redirectLocation(apiKey, clientId, redirect) {
-      var parentFilterSet = getParentFilterSet();
-      GapiWrapper.ensureApiKeyAndClientIdAuthed(apiKey, clientId)
+    function redirectLocation(appState) {
+      GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId)
         .then(
           function() {
             console.log('listShotFiles??');
-            return GapiWrapper.listShotFiles(parentFilterSet);
+            return GapiWrapper.listShotFiles(appState.parentFilterSet);
           },
           function() {
             // Throw.
@@ -519,7 +525,7 @@
                 // -n: first
                 // -inf: first
                 var n = shotFileMetadatas.length;
-                var absoluteIndex = Number(url('#absolute_index')); // TODO: sanitize to integer
+                var absoluteIndex = appState.absoluteIndex;
                 if (absoluteIndex < 0) {
                   realIndex = n + absoluteIndex;
                   if (realIndex < 0) {
@@ -538,7 +544,7 @@
                 
               case 'relative_index':
                 var n = shotFileMetadatas.length;
-                var shotFileId = url('#shot_file_id');
+                var shotFileId = appState.shotFileId;
                 if (shotFileId === undefined) {
                   break; // Default to listing.
                 }
@@ -547,7 +553,7 @@
                 if (startingIndex === -1) {
                   break; // Default to listing.
                 }
-                var relativeIndex = Number(url('#relative_index')); // TODO: sanitize to integer
+                var relativeIndex = appState.relativeIndex;
                 var absoluteIndex = startingIndex + relativeIndex;
                 if (absoluteIndex < 0) {
                   realIndex = n + absoluteIndex;
@@ -568,20 +574,169 @@
               default:
                 break; // Default to listing.
             }
-            var hashArgs = getPersistentHashArgs();
+            var hashQueryMap = appState.getPersistentHashQueryMap();
             if (realIndex === undefined) {
               // No shots. Let's just do a listing instead.
-              hashArgs['view'] = 'list';
+              hashQueryMap.set('view', 'list');
             } else {
               // Translate to fileId.
               var fileId = shotFileMetadatas[realIndex].fileId;
-              hashArgs['view'] = 'single';
-              hashArgs['shot_file_id'] = fileId;
+              hashQueryMap('view', 'single');
+              hashQueryMap('shot_file_id', fileId);
             }
-            replaceLocationWithHash(hashArgs);
+            replaceLocationWithHashQueryMap(hashQueryMap);
             // Queue hash change.
             Promise.resolve(true).then(() => onHashChange());
           });
+    }
+    
+    // From https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API#Testing_for_availability
+    function storageAvailable(type) {
+      try {
+        var storage = window[type],
+            x = '__storage_test__';
+        storage.setItem(x, x);
+        storage.removeItem(x);
+        return true;
+      }
+      catch(e) {
+        return e instanceof DOMException && (
+          // everything except Firefox
+          e.code === 22 ||
+          // Firefox
+          e.code === 1014 ||
+          // test name field too, because code might not be present
+          // everything except Firefox
+          e.name === 'QuotaExceededError' ||
+          // Firefox
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+          // acknowledge QuotaExceededError only if there's something already stored
+          storage.length !== 0;
+      }
+    }
+
+    // All app inputs declared here.
+    // TODO: organize better. this will do for ensuring we don't forget about parameters.
+    class ShotsAppState {
+      constructor() {
+        this.apiKey = null;
+        this.clientId = null;
+        this.parentFilterSet = new Set();
+        this.view = null;
+        this.shotFileId = null;
+        this.redirect = null;
+        this.absoluteIndex = null;
+        this.relativeIndex = null;
+        
+        this.authLocallyStored = false;
+      }
+      
+      /** Returns Map with entries that must be persisted in the location hash query. */
+      getPersistentHashQueryMap() {
+        var hashQueryMap = new Map();
+        if (!this.authLocallyStored) {
+          if (this.apiKey !== null) {
+            hashQueryMap.set('api_key', this.apiKey);
+          }
+          if (this.clientId !== null) {
+            hashQueryMap.set('client_id', this.clientId);
+          }
+        }
+        if (this.parentFilterSet !== null) {
+          hashQueryMap.set('parent_filter_set', this.parentFilterSet);
+        }
+        return hashQueryMap;
+      }
+    }
+    
+    // TODO: move into ShotsAppState?
+    /** Returns true if auth absorbed into local storage. False otherwise. */
+    function absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery) {
+      if (!storageAvailable('localStorage')) {
+        return false;
+      }
+      if (apiKey !== null) {
+        window.localStorage.setItem('api_key', apiKey);
+      }
+      if (clientId !== null) {
+        window.localStorage.setItem('client_id', clientId);
+      }
+      // Strip from hashQuery.
+      var strippedHashQueryMap = Object.keys(hashQuery)
+        .filter(key => key !== 'api_key' && key !== 'client_id')
+        .reduce(
+          (map, key) => {
+            map.set(key, hashQuery.get(key));
+            return map;
+          },
+          new Map());
+      // Replace state.
+      replaceLocationWithHashQueryMap(strippedHashQueryMap);
+      return true;
+    }
+    
+    // TODO: better name
+    function getInputAndState() {
+      var appState = new ShotsAppState();
+      var apiKey = null;
+      var clientId = null;
+      // Auth is special: may come from local storage.
+      if (storageAvailable('localStorage')) {
+        apiKey = window.localStorage.getItem('api_key');
+        clientId = window.localStorage.getItem('client_id');
+      }
+      var hashQuery = url('#');
+      var authInHashQuery = false;
+      if (hashQuery['api_key'] !== undefined) {
+        authInHashQuery = true;
+        apiKey = hashQuery['api_key'];
+      }
+      if (hashQuery['client_id'] !== undefined) {
+        authInHashQuery = true;
+        clientId = hashQuery['client_id'];
+      }
+      if (apiKey !== null) {
+        shotsAppState.apiKey = apiKey;
+      }
+      if (clientId !== null) {
+        shotsAppState.clientId = clientId;
+      }
+      // Absorb auth into local storage if possible.
+      if (authInHashQuery && absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery)) {
+        shotsAppState.authLocallyStored = true;
+      }
+      
+      // Rest of the input.
+      if (hashQuery['parent_filter_set'] !== undefined) {
+        shotsAppState.parentFilterSet =
+          new Set(hashQuery['parent_filter_set'].split(','));
+      }
+      if (hashQuery['view'] !== undefined) {
+        shotsAppState.view = hashQuery['view'];
+      }
+      // shot_file_id
+      if (hashQuery['shot_file_id'] !== undefined) {
+        shotsAppState.shotFileId = hashQuery['shot_file_id'];
+      }
+      // redirect
+      if (hashQuery['redirect'] !== undefined) {
+        shotsAppState.redirect = hashQuery['redirect'];
+      }
+      // absolute_index
+      if (hashQuery['absolute_index'] !== undefined) {
+        var absoluteIndex = Number(hashQuery['absolute_index']);
+        if (absoluteIndex.isInteger()) {
+          shotsAppState.absoluteIndex = absoluteIndex;
+        }
+      }
+      // relative_index
+      if (hashQuery['relative_index'] !== undefined) {
+        var relativeIndex = Number(hashQuery['relative_index']);
+        if (relativeIndex.isInteger()) {
+          shotsAppState.relativeIndex = relativeIndex;
+        }
+      }
+      return shotsAppState;
     }
     
     /* missing api_key or client_id beats everything else
@@ -592,38 +747,34 @@
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
       
-      updateNav();
-
-      // Shift in all parameters now, incase there is another hash change.
-      var apiKey = url('#api_key');
-      var clientId = url('#client_id');
-      var view = url('#view');
+      // All inputs must be clocked in at this time. Do not retrieve independently.
+      var appState = getInputAndState();
+      
+      updateNav(appState);
       
       // Default view mode.
-      if (view === undefined) {
-        view = 'list';
+      if (appState.view === null) {
+        appState.view = 'list';
       }
       
-      if (maybeShowApiForm(apiKey, clientId)) {
+      if (maybeShowApiForm(appState.apiKey, appState.clientId)) {
         return;
       }
       
       // TODO: further sanitize view
-      activateViewContainer(view);
+      activateViewContainer(appState.view);
       
       // Redirects
-      var redirect = url('#redirect');
-      if (redirect !== undefined) {
-        // TODO: get list of files (filtered by parent_set) then index by redirect
+      if (appState.redirect !== null) {
         // TDOO: consider caching implications. always refresh, or reuse in-page cache.
-        redirectLocation(apiKey, clientId, redirect);
-        return;
+        redirectLocation(appState);
+        return; // Redirection effectively causes a new hash change event to be triggered.
       }
 
       // Async acquiring authorization.
-      var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(apiKey, clientId);
+      var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId);
       
-      switch (view) {
+      switch (appState.view) {
         case 'list':
           // Can arrange DOM immediately.
           // Reset state of list container
@@ -636,7 +787,7 @@
           whenAuthed.then(
             function() {
               console.log('listShotFiles??');
-              return GapiWrapper.listShotFiles(getParentFilterSet());
+              return GapiWrapper.listShotFiles(appState.parentFilterSet);
             },
             function() {
               // Throw.
@@ -653,10 +804,10 @@
                 (metadata) => {
                   // Append to listing container
                   var entry = document.createElement('div');
-                  var shotLinkHash = getPersistentHashArgs();
-                  shotLinkHash['view'] = 'single';
-                  shotLinkHash['shot_file_id'] = metadata.fileId;
-                  var shotLink = hashToLocationString(shotLinkHash);
+                  var shotLinkHashQueryMap = appState.getPersistentHashQueryMap(); //getPersistentHashArgs();
+                  shotLinkHashQueryMap.set('view', 'single');
+                  shotLinkHashQueryMap.set('shot_file_id', metadata.fileId);
+                  var shotLink = hashQueryMapToLocationString(shotLinkHashQueryMap); //hashToLocationString(shotLinkHash);
                   var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
                   entry.innerHTML = `<a href="${shotLink}"><h3>${listingLabel.timeLabel}</h3><h4>${listingLabel.fileSystemLabel}</h4></a>`;
                   entry.className = 'listing-entry';
@@ -671,10 +822,10 @@
           break;
 
         case 'single':
-          var shotFileId = url('#shot_file_id');
+          var shotFileId = appState.shotFileId;
           
           // Can arrange DOM immediately.
-          if (shotFileId === undefined) {
+          if (shotFileId === null) {
             // Throw.
             console.log('No shot file to show.');
             break;
@@ -770,6 +921,10 @@
       return mapping;
     }
     
+    function replaceLocationWithHashQueryMap(hashQueryMap) {
+      window.history.replaceState({}, '', hashQueryMapToLocationString(hashQueryMap));
+    }
+    // Deprecate in favor of Map-based solution.
     function replaceLocationWithHash(params) {
       window.history.replaceState({}, '', hashToLocationString(params));
     }
@@ -799,6 +954,7 @@
           warning.hidden = false;
         } else {
           warning.hidden = true;
+          // TODO: move to new system.
           var hashArgs = url('#');
           hashArgs['api_key'] = api_key;
           hashArgs['client_id'] = client_id;
