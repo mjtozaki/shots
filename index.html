@@ -501,7 +501,7 @@
           function(shotFileMetadatas) {
             // Convert redirects from indirect reference to absolute shot index.
             var realIndex = undefined;
-            switch (redirect) {
+            switch (appState.redirect) {
               // TODO: maybe develop into day and day index. or month and month index
               case 'yesterday':
                 // Go backwards through listing until you find anything before today.
