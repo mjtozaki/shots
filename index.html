@@ -247,7 +247,7 @@
         var cacheKey = this._makeListShotFilesCacheKey(parentFilterSet);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
-          return Promise.resolve(cacheValue);
+          return cacheValue;
         }
         
         console.log('Requesting files.list');
@@ -369,7 +369,7 @@
         var cacheKey = this._makeGetFileContentsCacheKey(fileId);
         var cacheValue = this.rpcCache.get(cacheKey);
         if (cacheValue !== null) {
-          return Promise.resolve(cacheValue);
+          return cacheValue;
         }
         
         var rpcPromise = gapi.client.request({
