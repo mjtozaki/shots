@@ -642,7 +642,7 @@
             hashQueryMap.set('client_id', this.clientId);
           }
         }
-        if (this.parentFilterSet !== null) {
+        if (this.parentFilterSet.size > 0) {
           hashQueryMap.set(
             'parent_filter_set',
             [...this.parentFilterSet].join(','));
