@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
+<script type="text/javascript">
+  "use strict";
+  
+  /**
+   * Uses hash-based query strings to avoid script dependencies getting our query string as part of the referrer.
+   *
+   * 1. Client does initial load. 
+   * 2. Client redirects to google auth.
+   * 3. User consents or denies.
+   * 4. Google auth redirects to client URI. If user consents, get authorization code in query string.
+   * 5. Get refresh token.
+   * 
+   * 
+   * See https://developers.google.com/identity/protocols/OAuth2WebServer
+   */
+   
+  var STATE_STEP4 = '4';
+  var REDIRECT_URI = 'https://mjtozaki.github.io/auth_sanitizer.html';
+  var SCOPE = 'https://www.googleapis.com/auth/drive';
+   
+  function step2(clientId) {
+
+    var targetUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+      Object.entries(
+        {
+          client_id: clientId,
+          redirect_uri: encodeURIComponent(REDIRECT_URI),
+          scope: encodeURIComponent(SCOPE),
+          access_type: 'offline',
+          state: STATE_STEP4,
+        }
+      )
+      .map(entry => `${entry[0]}=${entry[1]}`)
+      .join('&');
+
+    location.href = targetUrl; // Adios.
+  }
+  
+  function step4() {
+    // Parameters from google auth.
+    var error = url('#error');
+    var code = url('#code');
+    
+    if (error !== undefined) {
+      addMessage('Step 4: hit error ' + error);
+      return;
+    }
+    
+    if (code === undefined) {
+      addMessage('Step 4: expected a code, but there was none');
+      return;
+    }
+    
+    addMessage('Received auth code: ' + code);    
+    var authCodeForm = document.getElementById('form-auth-code');
+    authCodeForm.value = code;
+  }
+  
+  function step5(authCode, clientId, clientSecret) {
+    var getRefreshTokenUri = 'https://www.googleapis.com/oauth2/v4/token';
+    
+    var whenRequestFinished = new Promise(resolve => {
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", getRefreshTokenUri, true);
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+      xhr.onreadystatechange = function() {
+        resolve(this);
+      }
+      xhr.send(
+        `code=${authCode}&` +
+        `client_id=${clientId}&` +
+        `client_secret=${clientSecret}&` +
+        `redirect_uri=${REDIRECT_URI}&` +
+        `grant_type=authorization_code`);
+      addMessage('Sent request for refresh token.');
+    });
+    
+    whenRequestFinished
+      .then(
+        function(xhr) {
+          console.log(xhr);
+          if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+            xhr.responseType = 'json';
+            response = xhr.response;
+            addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
+          } else {
+            addMessage(`Failed refresh token retrieval. readyState=${xhr.readyState}, status=${xhr.status}`);
+          }
+        }
+
+  }
+  
+  
+  // On page load:
+  document.addEventListener('DOMContentLoaded',function() {
+    // Setup form handlers.
+    document.getElementById('form-get-auth-code-button').onclick = function() {
+      var clientId = document.getElementById('form-client-id').value;
+      if (clientId === '') {
+        addMessage('client id must be set before getting the auth code.');
+        return false;
+      }
+      step2(clientId);
+      return false;
+    };
+          
+    document.getElementById('form-get-refresh-token-button').onclick = function() {
+      var authCode = document.getElementById('form-auth-code').value;
+      var clientId = document.getElementById('form-client-id').value;
+      var clientSecret = document.getElementById('form-client-secret').value;
+      var proceed = true;
+      if (authCode === '') {
+        addMessage('auth code must be set before refreshing token.');
+        proceed = false;
+      }
+      if (clientId === '') {
+        addMessage('client ID must be set before refreshing token.');
+        proceed = false;
+      }
+      if (clientSecret === '') {
+        addMessage('client secret must be set before refreshing token.');
+        proceed = false;
+      }
+      if (proceed) {
+        step5(authCode, clientId, clientSecret);
+      }
+      return false;
+    };
+  }, false);
+
+  function addMessage(message) {
+    var date = new Date(Date.now());
+    var messagesContainer = document.getElementById('messages-container');
+    messagesContainer.innerHTML += `${date}: ${message}<br>`;
+  }
+
+  addMessage('hash query string: ' + url('#'));
+  
+  var clientId = window.localStorage.getItem('client_id');
+  if (clientId !== undefined) {
+    addMessage('Retrieved client_id from localStorage: ' + clientId);
+    var clientIdForm = document.getElementById('form-client-id');
+    clientIdForm.value = code;
+  }
+  
+  var state = url('#state');
+  if (state === undefined) {
+    state = '2';
+  }
+  
+  switch (state) {
+//  case '2':
+//    step2();
+//    break;
+  case STATE_STEP4:
+    step4();
+    break;
+  default:
+    break;
+  }
+  
+  
+</script>
+</head>
+<body>
+<div id='messages-container'></div>
+<form method="get">
+  <div class="form">
+    <label class="form-text" for="form-client-id">client id</label>
+    <input id="form-client-id" type="text" name="client_id">
+  </div>
+  <div class="form">
+    <label class="form-text" for="form-client-secret">client secret</label>
+    <input id="form-client-secret" type="text" name="client_secret">
+  </div>
+  <div class="form">
+    <label class="form-text" for="form-auth-code">auth code</label>
+    <input id="form-auth-code" type="text" name="auth_code">
+  </div>
+  <input class="form-text" id="form-get-auth-code-button" type="submit" value="Get auth code">
+  <input class="form-text" id="form-get-refresh-token-button" type="submit" value="Get refresh token">
+</form>
+</body>
+</html>
