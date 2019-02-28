@@ -33,7 +33,7 @@
           access_type: 'offline',
           state: STATE_STEP4,
           response_type: 'code',
-          prompt: 'consent',
+          prompt: 'consent', // Required to generate the refresh token. Otherwise, just get access token.
         }
       )
       .map(entry => `${entry[0]}=${entry[1]}`)
@@ -67,6 +67,7 @@
     
     var whenRequestFinished = new Promise(resolve => {
       var xhr = new XMLHttpRequest();
+      xhr.responseType = 'json';
       xhr.open("POST", getRefreshTokenUri, true);
       xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
