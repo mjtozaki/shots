@@ -140,7 +140,7 @@
     if (clientId !== undefined) {
       addMessage('Retrieved client_id from localStorage: ' + clientId);
       var clientIdForm = document.getElementById('form-client-id');
-      clientIdForm.value = code;
+      clientIdForm.value = clientId;
     }
 
     var state = url('#state');
