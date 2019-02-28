@@ -19,7 +19,7 @@
    */
    
   var STATE_STEP4 = '4';
-  var REDIRECT_URI = 'https://mjtozaki.github.io/auth_sanitizer.html';
+  var REDIRECT_URI = 'https://mjtozaki.github.io/shots/auth_sanitizer.html';
   var SCOPE = 'https://www.googleapis.com/auth/drive';
    
   function step2(clientId) {
@@ -32,6 +32,7 @@
           scope: encodeURIComponent(SCOPE),
           access_type: 'offline',
           state: STATE_STEP4,
+          response_type: 'code',
         }
       )
       .map(entry => `${entry[0]}=${entry[1]}`)
