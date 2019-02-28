@@ -135,8 +135,6 @@
   document.addEventListener('DOMContentLoaded',function() {
     setupButtons();
 
-    addMessage('hash query string: ' + url('#'));
-  
     var clientId = window.localStorage.getItem('client_id');
     if (clientId !== undefined) {
       addMessage('Retrieved client_id from localStorage: ' + clientId);
