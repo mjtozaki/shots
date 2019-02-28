@@ -163,29 +163,30 @@
   function addMessage(message) {
     var date = new Date(Date.now());
     var messagesContainer = document.getElementById('messages-container');
-    messagesContainer.innerHTML += `${date}: ${message}<br>`;
+    messagesContainer.innerHTML = `${date}: ${message}<br>` + messagesContainer.innerHTML;
   }
 
   
 </script>
 </head>
 <body>
-<div id='messages-container'></div>
-<form method="get">
-  <div class="form">
-    <label class="form-text" for="form-client-id">client id</label>
-    <input id="form-client-id" type="text" name="client_id">
-  </div>
-  <div class="form">
-    <label class="form-text" for="form-client-secret">client secret</label>
-    <input id="form-client-secret" type="text" name="client_secret">
-  </div>
-  <div class="form">
-    <label class="form-text" for="form-auth-code">auth code</label>
-    <input id="form-auth-code" type="text" name="auth_code">
-  </div>
-  <input class="form-text" id="form-get-auth-code-button" type="submit" value="Get auth code">
-  <input class="form-text" id="form-get-refresh-token-button" type="submit" value="Get refresh token">
-</form>
+  <form method="get">
+    <div class="form">
+      <label class="form-text" for="form-client-id">client id</label>
+      <input id="form-client-id" type="text" name="client_id">
+    </div>
+    <div class="form">
+      <label class="form-text" for="form-client-secret">client secret</label>
+      <input id="form-client-secret" type="text" name="client_secret">
+    </div>
+    <div class="form">
+      <label class="form-text" for="form-auth-code">auth code</label>
+      <input id="form-auth-code" type="text" name="auth_code">
+    </div>
+    <input class="form-text" id="form-get-auth-code-button" type="submit" value="Get auth code">
+    <input class="form-text" id="form-get-refresh-token-button" type="submit" value="Get refresh token">
+  </form>
+  <br>
+  <div id='messages-container'></div>
 </body>
 </html>
