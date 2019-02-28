@@ -88,7 +88,6 @@
         function(xhr) {
           console.log(xhr);
           if (xhr.status === 200) {
-            xhr.responseType = 'json';
             response = xhr.response;
             addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
           } else {
