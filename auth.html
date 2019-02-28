@@ -88,8 +88,12 @@
         function(xhr) {
           console.log(xhr);
           if (xhr.status === 200) {
-            response = xhr.response;
-            addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
+            var response = xhr.response;
+            if (response.refresh_token !== undefined) {
+              addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
+            } else {
+              addMessage('Refresh token was not sent. Response: ' + Object.entries(response));
+            }
           } else {
             addMessage(`Failed refresh token retrieval. readyState=${xhr.readyState}, status=${xhr.status}`);
           }
