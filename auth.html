@@ -176,6 +176,17 @@
 </script>
 </head>
 <body>
+  <div>
+    How to generate a refresh token for your account paired with a specific app:<br>
+    Step 1: Fill in your client id, from <br>
+    Google Cloud Platform -> APIs and Services -> Credentials -> OAuthg 2.0 client IDs -> Your App.<br>
+    Step 2: Click "Get auth code".<br>
+    You will be redirected to Google to authenticate, and you will have to consent to access scopes being requested.<br>
+    Step 3: You will be redirected back here and your auth code will be populated.<br>
+    Fill in your client secret, from the same place as your client id.<br>
+    Step 4: A message will be logged below with your refresh token. Keep this safe, and don't share it!
+    Step 5: Don't needlessly generate refresh tokens. An account has a max of 25 refresh tokens, new ones will push old ones out.<br>
+  </div>
   <form method="get">
     <div class="form">
       <label class="form-text" for="form-client-id">client id</label>
