@@ -12,11 +12,14 @@
    
   var url = location.href;
   var queryStringStart = url.indexOf('?');
+  var queryString;
   if (queryStringStart === -1) {
     // Error.
+    queryString = "error=no_query_string";
+  } else {
+    queryString = url.substring(queryStringStart+1);  
   }
   
-  var queryString = url.substring(queryStringStart+1);
   /*
   var params = queryString
     .split('&')
