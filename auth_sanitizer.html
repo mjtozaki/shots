@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript">
+  "use strict";
+  
+  /**
+   * This is step 4. See auth.html for steps.
+   * Here we are converting the query string into a hash-based query string.
+   * This will prevent leakage of data to resources on the webpage e.g. scripts.
+   */
+   
+  var url = location.href;
+  var queryStringStart = url.indexOf('?');
+  if (queryStringStart === -1) {
+    // Error.
+  }
+  
+  var queryString = url.substring(queryStringStart+1);
+  /*
+  var params = queryString
+    .split('&')
+    .reduce((map, pair) => {
+      var pairArray = pair.split('=');
+      var key = pairArray[0];
+      var value = pairArray[1];
+      if (value === undefined) {
+        value = 1;
+      }
+      map.set(key, value);
+    },
+    new Map());
+  */
+    
+  var AUTH_URI = "auth.html"
+  
+  location.href = AUTH_URI + '#' + queryString;
+  
+</script>
+</head>
+<body>
+</body>
+</html>
