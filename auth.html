@@ -94,9 +94,7 @@
         });
   }
   
-  
-  // On page load:
-  document.addEventListener('DOMContentLoaded',function() {
+  function setupButtons() {
     // Setup form handlers.
     document.getElementById('form-get-auth-code-button').onclick = function() {
       var clientId = document.getElementById('form-client-id').value;
@@ -129,7 +127,37 @@
         step5(authCode, clientId, clientSecret);
       }
       return false;
-    };
+    }; 
+  }
+  
+  // On page load:
+  document.addEventListener('DOMContentLoaded',function() {
+    setupButtons();
+
+    addMessage('hash query string: ' + url('#'));
+  
+    var clientId = window.localStorage.getItem('client_id');
+    if (clientId !== undefined) {
+      addMessage('Retrieved client_id from localStorage: ' + clientId);
+      var clientIdForm = document.getElementById('form-client-id');
+      clientIdForm.value = code;
+    }
+
+    var state = url('#state');
+    if (state === undefined) {
+      state = '2';
+    }
+
+    switch (state) {
+  //  case '2':
+  //    step2();
+  //    break;
+    case STATE_STEP4:
+      step4();
+      break;
+    default:
+      break;
+    }
   }, false);
 
   function addMessage(message) {
@@ -138,31 +166,6 @@
     messagesContainer.innerHTML += `${date}: ${message}<br>`;
   }
 
-  addMessage('hash query string: ' + url('#'));
-  
-  var clientId = window.localStorage.getItem('client_id');
-  if (clientId !== undefined) {
-    addMessage('Retrieved client_id from localStorage: ' + clientId);
-    var clientIdForm = document.getElementById('form-client-id');
-    clientIdForm.value = code;
-  }
-  
-  var state = url('#state');
-  if (state === undefined) {
-    state = '2';
-  }
-  
-  switch (state) {
-//  case '2':
-//    step2();
-//    break;
-  case STATE_STEP4:
-    step4();
-    break;
-  default:
-    break;
-  }
-  
   
 </script>
 </head>
