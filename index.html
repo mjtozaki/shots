@@ -1,415 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <!-- Styling -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,900" rel="stylesheet">
-  <style>
-    .odd-nav {
-      color: gray;
-      font-size: 5vw;
-      margin: 1vh .5vw;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 900;
-    }
-    .even-nav {
-      color: rgb(128,0,0);
-      font-size: 5vw;
-      margin: 1vh .5vw;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 900;
-    }
-    /* Get rid of link text coloring and underlines. */
-    a {
-      text-decoration: none;
-    }
-    
-    .form-text {
-      font-family: 'Roboto', sans-serif;
-      font-weight: 300;
-    }
-    div.form {
-      display: table-row;
-    }
-    label, input[type=text] {
-      display: table-cell;
-      margin-bottom: 10px;
-      margin-left: 10px;
-    }
-    #api-form-warning {
-      color: red;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 300;
-      margin-top: 10px;
-    }
+  <link rel="stylesheet" type="text/css" href="shots.css">
 
-    #shot-file-select {
-      font-family: 'Roboto', sans-serif;
-      font-weight: 300;
-    }
-    
-    .listing-entry {
-      font-family: 'Roboto', sans-serif;
-      font-weight: 300;
-    }
-
-    .shot_plot {
-      /* Force a ratio of 5:1 for all <div>
-       .viewportRatio(4, 3); */
-      width: 100vw;
-      
-      /*height: 75vw;*/ /* height:width ratio = 3/4 = .75  */
-      height: 56.25vw; /* height:width ratio = 9/16 = .5625  */
-      max-height: 100vh;
-      /*max-width: 133.33vh;*/ /* 4/3 = 1.3333 */
-      max-width: 177.78vh; /* 16/9 = 1.778 */
-
-
-
-      margin: 0;
-      resize: both;
-/*       position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0; */
-    }
-    
-    .shot_text {
-      /* Force a ratio of 5:1 for all <div>
-       .viewportRatio(4, 3); */
-
-      margin: 0;
-/*       position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0; */
-    }
-  </style>
+  <!-- External scripts -->
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  
-  <!-- Move this to gapi_wrapper.js-->
+
+  <!-- Internal scripts -->
+  <script type="text/javascript" src="gapi_wrapper.js"></script>
+  <script type="text/javascript" src="decent.js"></script>
+
+  <!-- Main -->
   <script type="text/javascript">
     "use strict";
-    
-    class TimedCache {
-      // TODO: cache groups with their own cache durations and element limits.
-      // e.g. parents name lookup cache should be forever (unlikely a folder will be renamed)
-      // e.g. shot file contents should be limited to something like 10 elements. And cache duration should be forever.
-      constructor(cacheDuration) {
-        this.cacheDuration = cacheDuration;
-        this.table = new Map();
-      }
 
-      _has(key) {
-        if (this.table.has(key)) {
-          var wrapped = this.table.get(key);
-          if (Date.now() < wrapped.time + this.cacheDuration) {
-            return true;
-          }
-          this.table.delete(key);
-        }
-        return false;
-      }
-      get(key) {
-        if (this._has(key)) {
-          return this.table.get(key).value;
-        }
-        return null;
-      }
-      set(key, value) {
-        this.table.set(key, TimedCache.wrapWithTime(value));
-      }
-      static wrapWithTime(value) {
-        return {time: Date.now(), value: value};
-      }
-    }
-    
-    // Parse the date out of shot file filenames.
-    // Assume file will CONTAIN this pattern, not exactly match.
-    // A user may edit filename, but is expected to leave datetime intact.
-    // Example filename: "20190202T141820.shot" or "freds_20190202T141820.shot"
-    const SHOTFILE_DATETIME_PATTERN = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/i;
-
-    class DirectoryMetadata {
-       constructor(fileId, name) {
-         this.fileId = fileId;
-         this.name = name;
-       }
-    }
-    
-    class ShotFileMetadata {
-      constructor(fileId, name, parents, datetime) {
-        this.fileId = fileId;
-        this.name = name;
-        this.parents = parents; // DirectoryMetadata[]
-        this.datetime = datetime;
-        this.friendlyName = null; // TODO: remove. layer breaking.
-      }
-    }
-
-    // TODO: locking
-    class _GapiWrapper {
-      constructor() {
-        this.activeApiKey = null;
-        this.activeClientId = null;
-        this.acquiringApiKey = null;
-        this.acquiringClientId = null;
-        this.whenApiKeyAndClientIdAuthed = null;
-        this.whenClientAndAuthLoaded = null;
-        const CACHE_DURATION = 1 * 60 * 1000; // Minutes.
-        this.rpcCache = new TimedCache(CACHE_DURATION);
-      }
-      
-      ensureClientAndAuthLoaded() {
-        if (this.whenClientAndAuthLoaded !== null) {
-          return this.whenClientAndAuthLoaded;
-        }
-        
-        this.whenClientAndAuthLoaded = new Promise(
-          resolve => gapi.load('client:auth2', resolve));
-        return this.whenClientAndAuthLoaded;
-      }
-      
-      
-      ensureApiKeyAndClientIdAuthed(apiKey, clientId) {
-        // TODO: refactor
-        var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-//       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
-
-        // TODO: also check that another api/client hasn't begun auth.
-        if (this.activeApiKey === apiKey && this.activeClientId === clientId) {
-          return Promise.resolve(true);
-        }
-        
-        if (this.acquiringApiKey === apiKey && this.acquiringClientId === clientId && this.whenApiKeyAndClientIdAuthed !== null) {
-          return this.whenApiKeyAndClientIdAuthed;
-        }
-        
-        this.acquiringApiKey = apiKey;
-        this.acquiringClientId = clientId;
-        this.whenApiKeyAndClientIdAuthed =
-          this.ensureClientAndAuthLoaded()
-          .then(
-            // Init client.
-            function() {
-              return gapi.client.init({
-                'apiKey': apiKey,
-                'clientId': clientId,
-                'scope': SCOPE,
-              });
-            },
-            function() {
-              // Throw.
-            }
-          )
-          .then(
-            // Ensure signed in.
-            function() {
-              var needToSignIn = true;
-              var GoogleAuth = gapi.auth2.getAuthInstance();
-              if (GoogleAuth.isSignedIn.get()) {
-                var user = GoogleAuth.currentUser.get();
-                var isAuthorized = user.hasGrantedScopes(SCOPE);
-                if (!isAuthorized) {
-                  console.log("Signed in and not authorized.");
-                } else {
-                  needToSignIn = false;
-                  console.log("Signed in and authorized!");
-                }
-              } else {
-                console.log("Not signed in.");
-              }
-              if (needToSignIn) {
-                return GoogleAuth.signIn();
-              }
-              return Promise.resolve(true);
-            },
-            function() {
-              // Throw.
-            }
-          )
-          .then(
-            // Record that we are signed in.
-            () => {
-              // TODO: check that acquiring is same as local key and client id. If not, then do not record?
-              this.activeApiKey = apiKey;
-              this.activeClientId = clientId;
-            },
-            function() {
-              // Throw
-              console.log('signIn() failed apparently.');
-            }
-          );
-        return this.whenApiKeyAndClientIdAuthed;
-      }
-      
-      _makeListShotFilesCacheKey(parentFilterSet) {
-        var key = `${this.activeApiKey},${this.activeClientId},listShotFiles,[`;
-        key += [...parentFilterSet].sort().join(',');
-        key += ']';
-        return key;
-      }
-      
-      static deepCopyFileList(fileList) {
-        // As deep as we're going.
-        return [...fileList];
-      }
-      
-      /** Use once authenticated and authorized. */
-      listShotFiles(parentFilterSet = new Set()) {
-        var cacheKey = this._makeListShotFilesCacheKey(parentFilterSet);
-        var cacheValue = this.rpcCache.get(cacheKey);
-        if (cacheValue !== null) {
-          return cacheValue
-            .then(_GapiWrapper.deepCopyFileList);
-        }
-        
-        console.log('Requesting files.list');
-        var q = "name contains '.shot'";
-        if (parentFilterSet.size > 0) {
-          q += " and (";
-          var delimiter = '';
-          parentFilterSet.forEach(
-            parent => {
-              // Overcollects to all files where any ancestor matches the filter.
-              q += delimiter + `${parent} in parents`;
-              delimiter = ' or ';
-            });
-          q += ")";
-        }
-        var rpcPromise = gapi.client.request({
-          'path': 'https://www.googleapis.com/drive/v3/files',
-          'params': {
-            'spaces': 'drive' /*,appDataFolder*/,
-            'q': q,
-            'fields': 'nextPageToken,files(id,name,parents)',
-          },
-        })
-        .then(
-          // Lookup parent names.
-          function(response) {
-            // File listing
-            console.log(response);
-
-            var shotFiles = response.result.files.filter(
-              file => {
-                if (!file.name.endsWith('.shot')) {
-                  return false;
-                }
-                return parentFilterSet.size == 0 ||
-                  file.parents.length == 0 ||
-                  parentFilterSet.has(file.parents[file.parents.length - 1]);
-              });
-            console.log(shotFiles);
-            
-            var parents = new Set(
-              shotFiles
-                .flatMap(shotFile => shotFile.parents));
-            var batch = gapi.client.newBatch();
-            parents.forEach(
-              parent => {
-                batch.add(
-                  gapi.client.request({
-                    'path': `https://www.googleapis.com/drive/v3/files/${parent}`,
-                    'params': {
-                      'fields': 'id,name',
-                    },
-                  }),
-                  {
-                    id: parent,
-                  });
-              });
-
-            return batch
-              .then(
-                function(response) {
-                  console.log(response);
-                  
-                  var parentIdToResourceMapping = response.result;
-                  
-                  return shotFiles
-                    .map(
-                      shotFile => {
-                        // Exact file datetime.
-                        var datetime = null;
-                        var result = SHOTFILE_DATETIME_PATTERN.exec(shotFile.name);
-                        if (result === null) {
-                          console.log(`Failed to find datetime of shot file ${shotFile.name} (${shotFile.fileId}).`);
-                        } else {
-                          datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
-                        }
-
-                        // Extract parents metadata.
-                        var parentIdToDirectoryMetadata = new Map();
-                        Object.keys(parentIdToResourceMapping)
-                          .forEach(parentId => {
-                            parentIdToDirectoryMetadata.set(
-                              parentId,
-                              new DirectoryMetadata(
-                                parentId,
-                                parentIdToResourceMapping[parentId].result.name));
-                          });
-
-                        // Then create arrays of them for files
-                        var parents = shotFile.parents.map(
-                          parentId => parentIdToDirectoryMetadata.get(parentId));
-                        return new ShotFileMetadata(shotFile.id, shotFile.name, parents, datetime);                      
-                      })
-                    .sort(
-                      (first, second) => first.datetime.getTime() - second.datetime.getTime());
-                },
-                function() {
-                  // Throw.
-                  console.log('Error: ' + reason);
-                }
-              );
-          },
-          function(reason) {
-            // Throw.
-            console.log('Error: ' + reason);
-          }
-        );
-        this.rpcCache.set(cacheKey, rpcPromise);
-        return rpcPromise
-          .then(_GapiWrapper.deepCopyFileList);
-      }
-      
-      _makeGetFileContentsCacheKey(fileId) {
-        return `${this.activeApiKey},${this.activeClientId},getFileContents,${fileId}`;
-      }
-      
-      // TODO: return a copy
-      /** Use once authenticated and authorized. */
-      getFileContents(fileId) {
-        // TODO: implement cache size constraints to avoid cache getting too big.
-        var cacheKey = this._makeGetFileContentsCacheKey(fileId);
-        var cacheValue = this.rpcCache.get(cacheKey);
-        if (cacheValue !== null) {
-          return cacheValue;
-        }
-        
-        var rpcPromise = gapi.client.request({
-          'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
-          'params': {
-             'alt': 'media',
-          },
-        })
-        .then(
-          function(response) {
-            console.log(response);
-            return response.body;
-          },
-          function(reason) {
-            // Throw
-            console.log(reason.result.error.message);
-          }
-        );
-        this.rpcCache.set(cacheKey, rpcPromise);
-        return rpcPromise;
-      }
-    }
-
-    window.GapiWrapper = new _GapiWrapper();
-  </script>
-  
-  <script type="text/javascript">
-    "use strict";
-    
     /* Main navigation change entrypoints:
      * 1. Initial page load -> gapi API onload mechanism -> gapi_loaded() -> onHashChange(). 
      *    For anything that needs to happen for all navigation changes, favor waiting for gapi_loaded()
@@ -421,7 +28,7 @@
      *    
      * All common navigation change handling starts in onHashChange().
      */
-    
+
     var VIEW_NAMES_TO_CONTAINER_IDS = {
       api_form: 'api-form-container',
       list: 'listing-container',
@@ -435,14 +42,14 @@
         .forEach(viewName =>
                  document.getElementById(VIEW_NAMES_TO_CONTAINER_IDS[viewName]).hidden = true);
     }
-    
+
     function applyHashArgIfDefined(obj, key) {
       var value = url('#' + key); 
       if (value !== undefined) {
         obj[key] = value;
       }
     }
-    
+
     // TODO: replace with library that converts to query string. Otherwise we are missing escaping logic.
     function hashQueryMapToLocationString(hashQueryMap) {
       var newLocation = '#' +
@@ -451,7 +58,7 @@
             .join('&');
       return newLocation;
     }
-    
+
     // TODO: deprecate
     function hashToLocationString(hashArgs) {
       var newLocation = '#' + Object.entries(hashArgs)
@@ -459,7 +66,7 @@
         .join('&');
       return newLocation;
     }
-    
+
     var PERSISTENT_HASH_ARGS = [
       'api_key',
       'client_id',
@@ -471,10 +78,10 @@
         .forEach(arg => applyHashArgIfDefined(hashArgs, arg));
       return hashArgs;
     }
-    
+
     /** Updates nav links based on "persistent" state. */
     function updateNav(appState) {
-//       var persistentHashArgs = getPersistentHashArgs();
+    //       var persistentHashArgs = getPersistentHashArgs();
       var persistentHashQueryMap = appState.getPersistentHashQueryMap();
       // List
       document.getElementById('shots-nav').href =
@@ -529,33 +136,33 @@
         nextNav.hidden = true;
       }
     }
-    
+
     function maybeShowApiForm(apiKey, clientId) {
       // TODO: manage showing/hiding sets of controls better.
       if (apiKey === null || clientId === null) {
         activateViewContainer('api_form');
-        apiFormContainer.hidden = false;
+        //apiFormContainer.hidden = false;
         document.getElementById('api-form-api-key').value = (apiKey === null) ? "" : apiKey;
         document.getElementById('api-form-client-id').value = (clientId === null) ? "" : clientId;
         return true;
       }
       return false;
     }
-    
+
     /** Returns a Set of parent filters. The Set is empty if there's no parent filters. */
-//     function getParentFilterSet() {
-//       var parent_filter_set_raw = url('#parent_filter_set');
-//       if (parent_filter_set_raw === undefined) {
-//         return new Set();
-//       }
-//       var parentFilterSet = new Set(parent_filter_set_raw.split(','));
-//       return parentFilterSet;
-//     }
-    
+    //     function getParentFilterSet() {
+    //       var parent_filter_set_raw = url('#parent_filter_set');
+    //       if (parent_filter_set_raw === undefined) {
+    //         return new Set();
+    //       }
+    //       var parentFilterSet = new Set(parent_filter_set_raw.split(','));
+    //       return parentFilterSet;
+    //     }
+
     function dateWithoutTime(date) {
       return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
-    
+
     function redirectLocation(appState) {
       GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId)
         .then(
@@ -660,7 +267,7 @@
             Promise.resolve(true).then(() => onHashChange());
           });
     }
-    
+
     // From https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API#Testing_for_availability
     function storageAvailable(type) {
       try {
@@ -721,7 +328,7 @@
         return hashQueryMap;
       }
     }
-    
+
     // TODO: move into ShotsAppState?
     /** Returns true if auth absorbed into local storage. False otherwise. */
     function absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery) {
@@ -747,7 +354,7 @@
       replaceLocationWithHashQueryMap(strippedHashQueryMap);
       return true;
     }
-    
+
     // TODO: better name
     function getInputAndState() {
       var appState = new ShotsAppState();
@@ -759,6 +366,9 @@
         clientId = window.localStorage.getItem('client_id');
       }
       var hashQuery = url('#');
+      if (hashQuery === undefined) {
+        hashQuery = {};
+      }
       var authInHashQuery = false;
       if (hashQuery['api_key'] !== undefined) {
         authInHashQuery = true;
@@ -811,11 +421,11 @@
       }
       return appState;
     }
-    
+
     /* missing api_key or client_id beats everything else
      * redirect beats view
      */
-    
+
     // The main feeder for location changes.
     function onHashChange() {
       console.log(`hash=${window.location.hash}`);
@@ -933,11 +543,11 @@
       }
     }
     window.addEventListener('hashchange', onHashChange, false);
-    
-//     var GoogleAuth;
-//     var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-//       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
-    
+
+    //     var GoogleAuth;
+    //     var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+    //       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
+
     function gapi_loaded() {
       // Call for initial page load.
       onHashChange();
@@ -993,7 +603,7 @@
         });
       return mapping;
     }
-    
+
     function replaceLocationWithHashQueryMap(hashQueryMap) {
       window.history.replaceState({}, '', hashQueryMapToLocationString(hashQueryMap));
     }
@@ -1015,7 +625,7 @@
         shot_file_id: fileId,
       });
     }
-    
+
     document.addEventListener('DOMContentLoaded',function() {
       // Setup api form handlers.
       document.getElementById('api-form-set').onclick = function() {
@@ -1029,6 +639,9 @@
           warning.hidden = true;
           // TODO: move to new system.
           var hashArgs = url('#');
+          if (hashArgs === undefined) {
+            hashArgs = {};
+          }
           hashArgs['api_key'] = api_key;
           hashArgs['client_id'] = client_id;
           gotoHash(hashArgs);
@@ -1038,351 +651,6 @@
 
     }, false);
 
-    /* Based upon:
-     *  -http://ryanogles.by/an-exploration-of-javascript-builders/
-     *  -https://medium.com/@axelhadfeg/builder-pattern-using-javascript-and-es6-ec1539182e24
-     */
-    class BaseBuilder {
-      init() {  
-        Object.keys(this).forEach((key) => {
-          const setterName = `set${key.substring(0,1).toUpperCase()}${key.substring(1)}`;
-          this[setterName] = (value) => {
-            this[key] = value;
-            return this;
-          };
-        });
-      }
-
-      build() {
-        const fields = Object.keys(this).filter((key) => (
-          typeof this[key] !== 'function'
-        ));
-                
-        var properties =  fields.reduce((returnValue, key) => {
-          return {
-            ...returnValue,
-            [key]: {
-              value: this[key],
-              writable: false
-            }
-          };
-        }, {});
-        
-        var outputObject = {};
-        Object.defineProperties(outputObject, properties);
-        
-        this.addMemberFunctions(outputObject);
-        
-        return outputObject;
-        
-//         return keysNoWithers.reduce((returnValue, key) => {
-//           return {
-//             ...returnValue,
-//             [key]: this[key]
-//           };
-//         }, {});
-      }
-    }
-
-    class ShotSyntaxError extends Error {
-      constructor(...params) {
-        super(...params);
-        
-        if (Error.captureStackTrace) {
-          Error.captureStackTrace(this, ShotSyntaxError);
-        }
-      }
-    }
-    class ShotBuilder extends BaseBuilder {
-      constructor() {
-        super();
-        
-        this.timestamp = new Date(0);
-        this.elapsed = [];
-        this.pressure = [];
-        this.flow = [];
-        this.weight = [];
-        this.flowWeight = [];
-        this.temperatureBasket = [];
-        this.temperatureMix = [];
-        this.temperatureTarget = [];
-        this.author = "";
-
-        super.init();
-      }
-      addMemberFunctions(obj) {
-        obj.renderText = function(div) {
-          var BR = "<br>";
-          var html = 
-            "timestamp: " + this.timestamp.toString() + BR
-            + "elapsed: " + this.elapsed + BR
-            + "pressure: " + this.pressure + BR
-            + "flow: " + this.flow + BR
-            + "weight: " + this.weight + BR
-            + "flowWeight: " + this.flowWeight + BR
-            + "temperatureBasket: " + this.temperatureBasket + BR
-            + "temperatureMix: " + this.temperatureMix + BR
-            + "temperatureTarget" + this.temperatureTarget + BR
-            + "author: " + this.author + BR;
-          div.innerHTML = html;
-        }
-        // Move this stuff to polymorphic renderers.
-        
-        obj.renderPlot = function(plot) {
-//           var plot = document.getElementById('shot_plot');
-          var pressure = {
-            x: this.elapsed,
-            y: this.pressure,
-            mode: 'lines',
-            name: 'Pressure',
-            line: {
-              color: 'green'
-            }
-          };
-          var flow = {
-            x: this.elapsed,
-            y: this.flow,
-            mode: 'lines',
-            name: 'Flow',
-            line: {
-              color: 'blue'
-            },
-            yaxis: 'y2'
-          };
-          var temperatureBasket = {
-            x: this.elapsed,
-            y: this.temperatureBasket,
-            mode: 'lines',
-            name: 'Basket Temperature',
-            line: {
-              color: 'red'
-            },
-            yaxis: 'y3'
-          };
-          
-          // TODO: align domain such that temperature target is centered.
-          var center =
-              this.temperatureTarget.reduce(
-                (accumulator, currentValue) => accumulator + currentValue)
-              / this.temperatureTarget.length;
-          var maxDifference = [...Array(this.elapsed.length).keys()]
-              .map(
-                (index) => Math.max(Math.abs(this.temperatureTarget[index] - center), Math.abs(this.temperatureBasket[index] - center)))
-              .reduce((accumulator, currentValue) => Math.max(accumulator, currentValue), 0);
-          var temperatureRange = [center - maxDifference, center + maxDifference];
-          var temperatureTarget = {
-            x: this.elapsed,
-            y: this.temperatureTarget,
-            mode: 'lines',
-            name: 'Target Basket Temperature',
-            line: {
-              color: 'red',
-              dash: 'dash'
-            },
-            yaxis: 'y3'
-          };
-            
-          var data = [pressure, flow, temperatureBasket, temperatureTarget];
-          var layout = {
-            title: `Shot @ ${this.timestamp}`,
-//             showlegend: false,
-            xaxis: {
-              title: 'Elapsed (s)',
-              domain: [0, 0.9],
-            },
-            yaxis: {
-              title: 'Pressure (bar)',
-              titlefont: {color: 'green'},
-              tickfont: {color: 'green'},
-              side: 'left'
-            },
-            yaxis2: {
-              title: 'Flow (mL/s)',
-              titlefont: {color: 'blue'},
-              tickfont: {color: 'blue'},
-              anchor: 'x',
-              overlaying: 'y',
-              side: 'right'
-            },
-            yaxis3: {
-              title: 'Basket Temperature (C)',
-              titlefont: {color: 'red'},
-              tickfont: {color: 'red'},
-              anchor: 'free',
-              overlaying: 'y',
-              side: 'right',
-              position: 1,
-              autorange: false,
-              range: temperatureRange
-            },
-          };
-          // React overwrites any existing plot.
-          Plotly.react(plot, data, layout);
-//           Plotly.plot(plot, [{
-//           x: [1, 2, 3, 4, 5],
-//           y: [1, 2, 4, 8, 16] }], {
-//           margin: { t: 0 } } );
-        }
-      }
-    }
-    function tclListToNumberArray(tclList) {
-      return tclList.split(/\s+/).map(numStr => Number(numStr));
-    }
-    function shotFromShotFileContents(contents) {
-      var S_TO_MS = 1000;
-      var attrs = tclArrayDeserializer(contents);
-      if (!attrs.has('settings')) {
-        throw new ShotSyntaxError("settings key not present.");
-      }
-      var settings = tclArrayDeserializer(attrs.get('settings'));
-      if (!attrs.has('machine')) {
-        throw new ShotSyntaxError("machine key not present.");
-      }
-      var machine = tclArrayDeserializer(attrs.get('machine'));
-      
-      var espressoElapsed = tclListToNumberArray(attrs.get('espresso_elapsed'));
-      var espressoPressure = tclListToNumberArray(attrs.get('espresso_pressure'));
-      var espressoWeight = tclListToNumberArray(attrs.get('espresso_weight'));
-      var espressoFlow = tclListToNumberArray(attrs.get('espresso_flow'));
-      var espressoFlowWeight = tclListToNumberArray(attrs.get('espresso_flow_weight'));
-      var espressoTemperatureBasket = tclListToNumberArray(attrs.get('espresso_temperature_basket'));
-      var espressoTemperatureMix = tclListToNumberArray(attrs.get('espresso_temperature_mix'));
-      
-      console.log("espresso_elapsed: " + attrs.get('espresso_elapsed'));
-      console.log("espressoElapsed: " + espressoElapsed);
-      var numPoints = espressoElapsed.length;
-      if (![espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
-          .every(sequence => sequence.length == numPoints)) {
-        throw ShotSyntaxError("Number of data points do not match across all dimensions.");
-      }
-
-      var builder = new ShotBuilder();
-      return builder
-        .setTimestamp(
-          new Date(Number(attrs.get('clock') * S_TO_MS)))
-        .setElapsed(espressoElapsed)
-        .setPressure(espressoPressure)
-        .setWeight(espressoWeight)
-        .setFlow(espressoFlow)
-        .setFlowWeight(espressoFlowWeight)
-        .setTemperatureBasket(espressoTemperatureBasket)
-        .setTemperatureMix(espressoTemperatureMix)
-        .setTemperatureTarget(Array(numPoints).fill(Number(settings.get('espresso_temperature'))))
-        .setAuthor(settings.get('author'))
-        .build();
-    }
-
-    
-    class TclError extends Error {
-      constructor(...params) {
-        super(...params);
-        
-        if (Error.captureStackTrace) {
-          Error.captureStackTrace(this, TclError);
-        }
-      }
-    }
-    var TOKEN_TYPE_EOF = 1;
-    var TOKEN_TYPE_WORD = 2;
-    class Token {
-      constructor(tokenType, value) {
-        this.tokenType = tokenType;
-        this.value = value;
-      }
-    }
-    /** 
-     * Processes similar to the following Tcl, where retName is a variable
-     * representing the returned value of the function:
-     *
-     *   upvar 1 $retName arrRef
-     *   array set arrRef $arrayString
-     *
-     * Respects rules 3 and 6 of Tcl. See https://www.tcl.tk/man/tcl/TclCmd/Tcl.htm.
-     */
-    function tclArrayDeserializer(arrayString) {
-      // Looks for zero or more pairs of words, where a word is either
-      // 1. a sequence of 1 or more non-whitespace characters, or
-      // 2. a sequence of characters within a left brace '{' and its matched right brace '}', respecting nested braces.
-      // A pair of words is separated by at least one non-newline whitespace characters,
-      // and pairs are separated by at least one newline.
-      // TODO: implement newline-related restrictions.
-      
-      // tokens:  (\s+), (\n), ([a-zA-Z0-9_]+), ({), (})
-      var tokenizer = new Tokenizer(arrayString);
-      var tclArray = new Map();
-      while (1) {
-        var token = tokenizer.nextToken();
-        if (token.tokenType == TOKEN_TYPE_EOF) {
-          break;
-        }
-        var key = token.value;
-        token = tokenizer.nextToken();
-        if (token.tokenType == TOKEN_TYPE_EOF) {
-          throw new TclError("Serialized Tcl arrays should have an even number of elements.");
-        }
-        tclArray.set(key, token.value);
-      }
-      return tclArray;
-    }
-    class Tokenizer {
-      constructor(str) {
-        this.str = str;
-        this.pos = 0;
-      }
-      static isWhitespace(ch) {
-        return /\s/.test(ch);
-      }
-      static isWordChar(ch) {
-        return /[a-zA-Z0-9_#:\.+-]/.test(ch);
-      }
-      eatWhitespace() {
-        while (this.pos < this.str.length && Tokenizer.isWhitespace(this.str.charAt(this.pos))) {
-          ++this.pos;
-        }
-      }
-      extractWord() {
-        var origin = this.pos;
-         while (this.pos < this.str.length && Tokenizer.isWordChar(this.str.charAt(this.pos))) {
-           ++this.pos;
-         }
-        return this.str.substring(origin, this.pos);
-      }
-      extractBracedWord() {
-        var origin = this.pos;
-        var depth = 0;
-        do {
-          var ch = this.str.charAt(this.pos);
-          if (ch === '{') {
-            ++depth;
-          } else if (ch === '}') {
-            --depth;
-          }
-          ++this.pos;
-        } while (this.pos < this.str.length && depth != 0);
-        if (depth != 0) {
-          throw new TclError("Unmatched curly braces.");
-        }
-        return this.str.substring(
-          origin+1, // Skip the '{'.
-          this.pos-2); // End before the '}'.
-      }
-      nextToken() {
-        this.eatWhitespace();
-        
-        if (this.pos >= this.str.length) {
-          return new Token(TOKEN_TYPE_EOF, undefined);
-        }
-        var ch = this.str.charAt(this.pos);
-        if (Tokenizer.isWordChar(ch)) {
-          return new Token(TOKEN_TYPE_WORD, this.extractWord());
-        } else if (ch === '{') {
-          return new Token(TOKEN_TYPE_WORD, this.extractBracedWord());
-        } else {
-          throw new TclError("Unexpected token '" + ch + "' at pos " + this.pos + ".");
-        }
-      }
-    }
-    
     
     function tryToShortenAUrl() {
           let requestUrl = `https://git.io/create`;
@@ -1404,7 +672,7 @@
     
   </script>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <!-- External script that needs to load last -->
   <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
 
 </head>
