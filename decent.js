@@ -1,6 +1,7 @@
 "use strict";
 
-/* Based upon:
+/* Experimenting with builders in js.
+ * Based upon:
  *  -http://ryanogles.by/an-exploration-of-javascript-builders/
  *  -https://medium.com/@axelhadfeg/builder-pattern-using-javascript-and-es6-ec1539182e24
  */
@@ -88,10 +89,10 @@ class ShotBuilder extends BaseBuilder {
         + "author: " + this.author + BR;
       div.innerHTML = html;
     }
-    // Move this stuff to polymorphic renderers.
+    
+    // TODO: Move this stuff to polymorphic renderers.
     
     obj.renderPlot = function(plot) {
-//           var plot = document.getElementById('shot_plot');
       var pressure = {
         x: this.elapsed,
         y: this.pressure,
@@ -121,8 +122,12 @@ class ShotBuilder extends BaseBuilder {
         },
         yaxis: 'y3'
       };
+
+      // Pressure and flow ranges match DE app defaults.
+      var pressureRange = [0, 12];
+      var flowRange = [0, 6];
       
-      // TODO: align domain such that temperature target is centered.
+      // Align temperature domain such that temperature target is centered.
       var center =
           this.temperatureTarget.reduce(
             (accumulator, currentValue) => accumulator + currentValue)
@@ -156,7 +161,9 @@ class ShotBuilder extends BaseBuilder {
           title: 'Pressure (bar)',
           titlefont: {color: 'green'},
           tickfont: {color: 'green'},
-          side: 'left'
+          side: 'left',
+          autorange: false,
+          range: pressureRange,
         },
         yaxis2: {
           title: 'Flow (mL/s)',
@@ -164,7 +171,9 @@ class ShotBuilder extends BaseBuilder {
           tickfont: {color: 'blue'},
           anchor: 'x',
           overlaying: 'y',
-          side: 'right'
+          side: 'right',
+          autorange: false,
+          range: flowRange,
         },
         yaxis3: {
           title: 'Basket Temperature (C)',
@@ -180,10 +189,6 @@ class ShotBuilder extends BaseBuilder {
       };
       // React overwrites any existing plot.
       Plotly.react(plot, data, layout);
-//           Plotly.plot(plot, [{
-//           x: [1, 2, 3, 4, 5],
-//           y: [1, 2, 4, 8, 16] }], {
-//           margin: { t: 0 } } );
     }
   }
 }
