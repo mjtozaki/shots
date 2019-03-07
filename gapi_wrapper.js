@@ -56,6 +56,15 @@ class ShotFileMetadata {
   }
 }
 
+class ShotIndexFileMetadata {
+  constructor(fileId, name, parents, modifiedTime) {
+    this.fileId = fileId;
+    this.name = name;
+    this.parents = parents; // DirectoryMetadata[]
+    this.modifiedTime = modifiedTime;
+  }
+}
+
 // TODO: locking
 class _GapiWrapper {
   constructor() {
@@ -67,6 +76,9 @@ class _GapiWrapper {
     this.whenClientAndAuthLoaded = null;
     const CACHE_DURATION = 1 * 60 * 1000; // Minutes.
     this.rpcCache = new TimedCache(CACHE_DURATION);
+    
+    // Cache that never expires. Different from rpc cache because it is derived from an RPC, and it is mutable.
+    this.annotationsCache = new Map();
   }
   
   ensureClientAndAuthLoaded() {
@@ -82,8 +94,7 @@ class _GapiWrapper {
   
   ensureApiKeyAndClientIdAuthed(apiKey, clientId) {
     // TODO: refactor
-    var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-//       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
+    var SCOPE = 'https://www.googleapis.com/auth/drive';
 
     // TODO: also check that another api/client hasn't begun auth.
     if (this.activeApiKey === apiKey && this.activeClientId === clientId) {
@@ -196,7 +207,7 @@ class _GapiWrapper {
     })
     .then(
       // Lookup parent names.
-      function(response) {
+      response => {
         // File listing
         console.log(response);
 
@@ -214,70 +225,147 @@ class _GapiWrapper {
         var parents = new Set(
           shotFiles
             .flatMap(shotFile => shotFile.parents));
-        var batch = gapi.client.newBatch();
-        parents.forEach(
-          parent => {
-            batch.add(
-              gapi.client.request({
-                'path': `https://www.googleapis.com/drive/v3/files/${parent}`,
-                'params': {
-                  'fields': 'id,name',
-                },
-              }),
-              {
-                id: parent,
-              });
-          });
+        return Promise.all([shotFiles, this.getNamesForFileIds(parents)]);
+      })
+    .then(
+      ([shotFiles, parentIdsToNames]) => {
+        return shotFiles
+          .map(
+            shotFile => {
+              // Exact file datetime.
+              var datetime = null;
+              var result = SHOTFILE_DATETIME_PATTERN.exec(shotFile.name);
+              if (result === null) {
+                console.log(`Failed to find datetime of shot file ${shotFile.name} (${shotFile.fileId}).`);
+              } else {
+                datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
+              }
 
-        return batch
-          .then(
-            function(response) {
-              console.log(response);
-              
-              var parentIdToResourceMapping = response.result;
-              
-              return shotFiles
-                .map(
-                  shotFile => {
-                    // Exact file datetime.
-                    var datetime = null;
-                    var result = SHOTFILE_DATETIME_PATTERN.exec(shotFile.name);
-                    if (result === null) {
-                      console.log(`Failed to find datetime of shot file ${shotFile.name} (${shotFile.fileId}).`);
-                    } else {
-                      datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
-                    }
+              // Create arrays of parents for files
+              var parents = shotFile.parents.map(
+                parentId => parentIdsToNames.get(parentId));
+              return new ShotFileMetadata(shotFile.id, shotFile.name, parents, datetime);
+            })
+          .sort(
+            (first, second) => first.datetime.getTime() - second.datetime.getTime());
+      });
 
-                    // Extract parents metadata.
-                    var parentIdToDirectoryMetadata = new Map();
-                    Object.keys(parentIdToResourceMapping)
-                      .forEach(parentId => {
-                        parentIdToDirectoryMetadata.set(
-                          parentId,
-                          new DirectoryMetadata(
-                            parentId,
-                            parentIdToResourceMapping[parentId].result.name));
-                      });
+    this.rpcCache.set(cacheKey, rpcPromise);
+    return rpcPromise
+      .then(_GapiWrapper.deepCopyFileList);
+  }
+  
+  
+  _makeNameForFileIdCacheKey(fileId) {
+    var key = `${this.activeApiKey},${this.activeClientId},nameForFileId,${fileId}`;
+    return key;
+  }
 
-                    // Then create arrays of them for files
-                    var parents = shotFile.parents.map(
-                      parentId => parentIdToDirectoryMetadata.get(parentId));
-                    return new ShotFileMetadata(shotFile.id, shotFile.name, parents, datetime);                      
-                  })
-                .sort(
-                  (first, second) => first.datetime.getTime() - second.datetime.getTime());
-            },
-            function() {
-              // Throw.
-              console.log('Error: ' + reason);
-            }
-          );
-      },
-      function(reason) {
-        // Throw.
-        console.log('Error: ' + reason);
+  getNamesForFileIds(fileIds) {
+    // Caches per fileId, not the batch as a whole.
+    var results = new Map();
+    
+    var lookupIds = [];
+    fileIds.forEach(fileId => {
+      var cacheKey = this._makeNameForFileIdCacheKey(fileId);
+      var cacheValue = this.rpcCache.get(cacheKey);
+      if (cacheValue !== null) {
+        results.set(fileId, cacheValue);
+      } else {
+        lookupIds.push(fileId);
       }
-    );
+    });
+
+    // No lookups required.
+    if (lookupIds.length === 0) {
+      return Promise.resolve(results);
+    }
+
+    var batch = gapi.client.newBatch();
+    lookupIds.forEach(
+      fileId => {
+        batch.add(
+          gapi.client.request({
+            'path': `https://www.googleapis.com/drive/v3/files/${fileId}`,
+            'params': {
+              'fields': 'name',
+            },
+          }),
+          {
+            id: fileId,
+          });
+      });
+    return batch
+      .then(
+        response => {
+          var idToResourceMapping = response.result;
+          
+          Object.keys(idToResourceMapping)
+            .forEach(fileId => {
+              var name = idToResourceMapping[fileId].result.name;
+              var cacheKey = this._makeNameForFileIdCacheKey(fileId);
+              this.rpcCache.set(cacheKey, name);
+              results.set(fileId, name);
+            });
+          
+          return results;
+        });
+  }
+  
+  _makeListShotIndexFilesCacheKey() {
+    var key = `${this.activeApiKey},${this.activeClientId},listShotIndexFiles`;
+    return key;
+  }
+  
+  /** Use once authenticated and authorized. */
+  listShotIndexFiles() {
+    var cacheKey = this._makeListShotIndexFilesCacheKey();
+    var cacheValue = this.rpcCache.get(cacheKey);
+    if (cacheValue !== null) {
+      return cacheValue
+        .then(_GapiWrapper.deepCopyFileList);
+    }
+    
+    console.log('Requesting files.list');
+    var q = "name contains '.shotindex'";
+    var rpcPromise = gapi.client.request({
+      'path': 'https://www.googleapis.com/drive/v3/files',
+      'params': {
+        'spaces': 'drive',
+        'q': q,
+        'fields': 'nextPageToken,files(id,name,parents,modifiedTime)',
+      },
+    })
+    .then(
+      // Lookup parent names.
+      response => {
+        // File listing
+        console.log(response);
+
+        var shotIndexFiles = response.result.files.filter(
+          file => {
+            return file.name.endsWith('.shotindex');
+          });
+        console.log(shotIndexFiles);
+        
+        var parents = new Set(
+          shotIndexFiles
+            .flatMap(shotIndexFile => shotIndexFile.parents));
+        return Promise.all(shotIndexFiles, this.getNamesForFileIds(parents));
+      })
+    .then(
+      ([shotIndexFiles, parentIdsToNames]) => {
+        return shotIndexFiles
+          .map(
+            shotIndexFile => {
+              var parents = shotFile.parents.map(
+                parentId => parentIdsToNames.get(parentId));
+              return new ShotIndexFileMetadata(shotIndexFile.id, shotIndexFile.name, parents, shotIndexFile.modifiedTime);
+            })
+          .sort(
+            (first, second) => first.modifiedTime.localeCompare(second.modifiedTime));
+      });
+
     this.rpcCache.set(cacheKey, rpcPromise);
     return rpcPromise
       .then(_GapiWrapper.deepCopyFileList);
@@ -315,6 +403,84 @@ class _GapiWrapper {
     );
     this.rpcCache.set(cacheKey, rpcPromise);
     return rpcPromise;
+  }
+  
+  static currentShotsSchemaVersionNumber() { return 'v1'; }
+  static currentShotsHeader() {
+    return ['File ID', 'Last Updated', ' Dose Mass', 'Beverage Mass', 'Grind', 'Description', 'Coffee Log ID']
+  }
+  static arraysAreEqualValues(a, b) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; ++i) {
+      if (a[i] !== b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  // TODO: move this to another file. doesn't belong in gapi wrapper necessarily.
+  getAllShotAnnotations(annotationsFileId) {
+    // TODO: Shots schema v2 should have:
+    //  -data checksum
+    
+    if (this.annotationsCache.has(annotationsFileId)) {
+      return this.annotationsCache.get(annotationsFileId);
+    }
+    
+    // All cells of Shots.
+    var range = `Shots`;
+    
+    var rpcPromise = gapi.client.request({
+      'path': `https://sheets.googleapis.com/v4/spreadsheets/${annotationsFileId}/values/${range}?` +
+          `majorDimension=ROWS`,
+    })
+      .then(
+        function(response) {
+          var matrix = response.result.values;
+          var schema = matrix[0];
+          var header = matrix[1];
+          
+          if (schema[0] !== _GapiWrapper.currentShotsSchemaVersionNumber()) {
+            throw 'Only support annotations file up to ' + _GapiWrapper.currentShotsSchemaVersionNumber();
+          }
+          
+          // Header must equal fixed set.
+          if (!_GapiWrapper.arraysAreEqualValues(header, _GapiWrapper.currentShotsHeader())) {
+            throw 'Annotations file has a bad header. Expected ' + _GapiWrapper.currentShotsHeader();
+          }
+          
+          var shotIdToAnnotations = new Map();
+
+          for (let i = 2; i < matrix.length; ++i) {
+            var row = matrix[i];
+            var fileId = row.shift();
+            var lastAnnotatedDate = row.shift();
+            var doseMass = row.shift();
+            var beverageMass = row.shift();
+            var grind = row.shift();
+            var description = row.shift();
+            var coffeeLogId = row.shift();
+            
+            if (fileId === undefined) {
+              return;
+            }
+            shotIdToAnnotations.set(fileId, {
+              lastAnnotatedDate: lastAnnotatedDate,
+              doseMass: doseMass,
+              beverageMass: beverageMass,
+              grind: grind,
+              description: description,
+              coffeeLogId: coffeeLogId,
+              rowNumber: i+1,
+            });
+          }
+          
+          this.annotationsCache.set(annotationsFileId, shotIdToAnnotations);
+          return shotIdToAnnotations;
+        });
   }
 }
 
