@@ -544,15 +544,6 @@
     }
     window.addEventListener('hashchange', onHashChange, false);
 
-    //     var GoogleAuth;
-    //     var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-    //       SCOPE += ' https://www.googleapis.com/auth/drive.appdata';
-
-    function gapi_loaded() {
-      // Call for initial page load.
-      onHashChange();
-    }
-      
     /** Returns Map of locale date (clock time) to ShotFileMetadata (preserves order). */
     function groupShotsByDate(metadatas) {
       return metadatas.reduce( // Groupby date.
@@ -670,6 +661,10 @@
       xhrPromise.then(xhr => console.log(xhr));
     }
     
+    function gapi_loaded() {
+      // Call for initial page load.
+      onHashChange();
+    }
   </script>
 
   <!-- External script that needs to load last -->
