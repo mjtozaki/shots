@@ -12,6 +12,28 @@
   font-family: 'Roboto', sans-serif;
   font-weight: 900;
 }
+.options-nav {
+  color: rgb(0,0,0);
+  font-size: 5vw;
+  margin: 1vh .5vw;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;  
+}
+.odd-option {
+  color: rgb(0, 0, 0);
+  font-size: 3vw;
+  margin: 1vh .5vw;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
+}
+.even-option {
+  color: rgb(207, 181, 59);
+  font-size: 3vw;
+  margin: 1vh .5vw;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
+}
+
 /* Get rid of link text coloring and underlines. */
 a {
   text-decoration: none;
@@ -20,15 +42,64 @@ a {
 .form-text {
   font-family: 'Roboto', sans-serif;
   font-weight: 300;
+  font-size: 1vw;
+}
+.form-warning-text {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+  font-size: 1vw;
+  color: rgb(255,0,0);
+}
+form {
+/*  width: 100%; */
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
 }
 div.form {
-  display: table-row;
+  /* display: table-row; */
+  width: 100%;
 }
-label, input[type=text] {
-  display: table-cell;
+
+
+label, input[type=text], textarea {
+  /* display: table-cell; */
   margin-bottom: 10px;
   margin-left: 10px;
 }
+
+#shot_annotations_container .small-annotation {
+  display: inline-block;
+}
+#shot_annotations_container .big-annotation {
+  display: flex;
+  flex-direction: row;
+}
+#shot_annotations_container .big-input {
+  align-self: stretch;
+  height: 10vh;
+  width: 100%;
+}
+#shot_annotations_container .new-form-label {
+  display: inline-block;
+  font-size: 1vw;
+  width: 7vw;
+  min-width: 7vw; /* Prevent shrinking by flex. */
+  text-align: right;
+}
+#shot_annotations_container .new-form-input {
+  font-size: 1vw;
+  width: 4vw;
+}
+#shot_annotations_container textarea {
+  /*
+  display: table-cell;
+  margin-bottom: 10px;
+  margin-left: 10px;
+  width: 100%;
+  max-width: 100%;
+  */
+}
+
 #api-form-warning {
   color: red;
   font-family: 'Roboto', sans-serif;

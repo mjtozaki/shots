@@ -305,19 +305,23 @@
         this.redirect = null;
         this.absoluteIndex = null;
         this.relativeIndex = null;
+        this.shotIndexFileId = null;
         
-        this.authLocallyStored = false;
+        this.localStorageUsed = false;
       }
       
       /** Returns Map with entries that must be persisted in the location hash query. */
       getPersistentHashQueryMap() {
         var hashQueryMap = new Map();
-        if (!this.authLocallyStored) {
+        if (!this.localStorageUsed) {
           if (this.apiKey !== null) {
             hashQueryMap.set('api_key', this.apiKey);
           }
           if (this.clientId !== null) {
             hashQueryMap.set('client_id', this.clientId);
+          }
+          if (this.shotIndexFileId !== null) {
+            hashQueryMap.set('shot_index_file_id', this.shotIndexFileId);
           }
         }
         if (this.parentFilterSet.size > 0) {
@@ -331,7 +335,7 @@
 
     // TODO: move into ShotsAppState?
     /** Returns true if auth absorbed into local storage. False otherwise. */
-    function absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery) {
+    function absorbIntoLocalStorage(apiKey, clientId, shotIndexFileId, hashQuery) {
       if (!storageAvailable('localStorage')) {
         return false;
       }
@@ -341,9 +345,12 @@
       if (clientId !== null) {
         window.localStorage.setItem('client_id', clientId);
       }
+      if (shotIndexFileId !== null) {
+        window.localStorage.setItem('shot_index_file_id', shotIndexFileId);
+      }
       // Strip from hashQuery.
       var strippedHashQueryMap = Object.keys(hashQuery)
-        .filter(key => key !== 'api_key' && key !== 'client_id')
+        .filter(key => key !== 'api_key' && key !== 'client_id' && key !== 'shot_index_file_id')
         .reduce(
           (map, key) => {
             map.set(key, hashQuery[key]);
@@ -360,23 +367,29 @@
       var appState = new ShotsAppState();
       var apiKey = null;
       var clientId = null;
+      var shotIndexFileId = null;
       // Auth is special: may come from local storage.
       if (storageAvailable('localStorage')) {
         apiKey = window.localStorage.getItem('api_key');
         clientId = window.localStorage.getItem('client_id');
+        shotIndexFileId = window.localStorage.getItem('shot_index_file_id');
       }
       var hashQuery = url('#');
       if (hashQuery === undefined) {
         hashQuery = {};
       }
-      var authInHashQuery = false;
+      var hashQueryHasLocallyStorableAttrs = false;
       if (hashQuery['api_key'] !== undefined) {
-        authInHashQuery = true;
+        hashQueryHasLocallyStorableAttrs = true;
         apiKey = hashQuery['api_key'];
       }
       if (hashQuery['client_id'] !== undefined) {
-        authInHashQuery = true;
+        hashQueryHasLocallyStorableAttrs = true;
         clientId = hashQuery['client_id'];
+      }
+      if (hashQuery['shot_index_file_id'] !== undefined) {
+        hashQueryHasLocallyStorableAttrs = true;
+        shotIndexFileId = hashQuery['shot_index_file_id'];
       }
       if (apiKey !== null) {
         appState.apiKey = apiKey;
@@ -384,9 +397,13 @@
       if (clientId !== null) {
         appState.clientId = clientId;
       }
-      // Absorb auth into local storage if possible.
-      if (authInHashQuery && absorbAuthIntoLocalStorage(apiKey, clientId, hashQuery)) {
-        appState.authLocallyStored = true;
+      if (shotIndexFileId !== null) {
+        appState.shotIndexFileId = shotIndexFileId;
+      }
+      // Absorb auth and others into local storage if possible.
+      if (hashQueryHasLocallyStorableAttrs &&
+          absorbIntoLocalStorage(apiKey, clientId, shotIndexFileId, hashQuery)) {
+        appState.localStorageUsed = true;
       }
       
       // Rest of the input.
@@ -517,23 +534,27 @@
           // Async
           whenAuthed.then(
             function() {
-              return GapiWrapper.getFileContents(shotFileId);
-            },
-            function() {
-              // Throw.
-              console.log('auth failed');
+              return Promise.all([GapiWrapper.getFileContents(shotFileId), GapiWrapper.getFileIndexMetadata(shotFileId, appState.shotIndexFileId)]);
             }
           )
           .then(
-            function(fileContents) {
+            ([fileContents, indexMetadata]) => {
               var shot = shotFromShotFileContents(fileContents);
               shot.renderText(document.getElementById('file_contents'));
               var plot = document.getElementById('shot_plot');
               shot.renderPlot(plot);
-            },
-            function() {
-              // Throw
-              console.log('file retrieval failed');
+              
+              var annotationsContainer = document.getElementById('shot_annotations_container');
+              annotationsContainer.hidden = false;
+              
+              document.getElementById('shot_annotations_dose_mass').value = (indexMetadata.doseMass !== undefined) ? indexMetadata.doseMass : "";
+              document.getElementById('shot_annotations_beverage_mass').value = (indexMetadata.beverageMass !== undefined) ? indexMetadata.beverageMass : "";
+              document.getElementById('shot_annotations_grind').value = (indexMetadata.grind !== undefined) ? indexMetadata.grind : "";
+              document.getElementById('shot_annotations_description').value = (indexMetadata.description !== undefined) ? indexMetadata.description : "";
+              document.getElementById('shot_annotations_row_number').value = (indexMetadata.rowNumber !== undefined) ? indexMetadata.rowNumber : "";
+              document.getElementById('shot_annotations_file_id').value = shotFileId;
+              document.getElementById('shot_annotations_unsaved_warning').hidden = true;
+              document.getElementById('shot_annotations_last_error').hidden = true;
             }
           );
           break;
@@ -618,6 +639,66 @@
     }
 
     document.addEventListener('DOMContentLoaded',function() {
+      // Static buttons
+      document.getElementById('options-nav').onclick = function() {
+        var optionsContainer = document.getElementById('options-container');
+        optionsContainer.hidden = !optionsContainer.hidden;
+        if (!optionsContainer.hidden) {
+          var shotIndexSelect = document.getElementById('shotindex-select');
+          // Reset state of select.
+          while (shotIndexSelect.firstChild) {
+            shotIndexSelect.removeChild(shotIndexSelect.firstChild);
+          }
+          var defaultOpt = document.createElement('option');
+          defaultOpt.value = null;
+          defaultOpt.innerHTML = '-- .shotindex files --';
+          shotIndexSelect.appendChild(defaultOpt);
+          shotIndexSelect.selectedIndex = 0;
+          
+          var appState = getInputAndState();
+          var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId);
+          whenAuthed.then(
+            function() {
+              return GapiWrapper.listShotIndexFiles();
+            }
+          )
+          .then(
+            function(shotIndexFiles) {
+              var i = 1;
+              shotIndexFiles.forEach(shotIndexFile => {
+                var parents = shotIndexFile.parents.join('/');
+              
+                var opt = document.createElement('option');
+                opt.value = shotIndexFile.fileId;
+                opt.innerHTML = `${parents}/${shotIndexFile.name}`
+                shotIndexSelect.appendChild(opt);
+                if (opt.value === appState.shotIndexFileId) {
+                  shotIndexSelect.selectedIndex = i;
+                }
+                ++i;
+              });
+            });
+        }
+      };
+
+      document.getElementById('shotindex-switch-button').onclick = function() {
+        // Get current fileId.
+        var shotIndexFileId = document.getElementById('shotindex-select').value;
+        if (shotIndexFileId === '') {
+          // TODO: remove shot index.
+          return;
+        } 
+
+        // Load new page.
+        var hashArgs = url('#');
+        if (hashArgs === undefined) {
+          hashArgs = {};
+        }
+        hashArgs['shot_index_file_id'] = shotIndexFileId;
+        gotoHash(hashArgs);
+      };
+    
+    
       // Setup api form handlers.
       document.getElementById('api-form-set').onclick = function() {
         var api_key = document.getElementById('api-form-api-key').value;
@@ -639,28 +720,54 @@
         }
         return false;
       };
+      
+      document.getElementById('shot_annotations_update').onclick = function() {
+        var doseMass = document.getElementById('shot_annotations_dose_mass').value;
+        var beverageMass = document.getElementById('shot_annotations_beverage_mass').value;
+        var grind = document.getElementById('shot_annotations_grind').value;
+        var description = document.getElementById('shot_annotations_description').value;
+        var rowNumber = document.getElementById('shot_annotations_row_number').value;
+        var fileId = document.getElementById('shot_annotations_file_id').value;
+        var lastUpdated = new Date(Date.now()).toISOString();
+        
+        var appState = getInputAndState();
+        
+        document.getElementById('shot_annotations_last_error').hidden = true;
+            
+        GapiWrapper.updateShotAnnotations(fileId, appState.shotIndexFileId, {
+          lastUpdated: lastUpdated,
+          doseMass: doseMass,
+          beverageMass: beverageMass,
+          grind: grind,
+          description: description,
+          //coffeeSourceId: coffeeSourceId,
+          rowNumber: rowNumber,
+        })
+          .then(() => {
+            document.getElementById('shot_annotations_unsaved_warning').hidden = true;
+          })
+          .catch((reason) => {
+            var errorLabel = document.getElementById('shot_annotations_last_error');
+            errorLabel.hidden = false;
+            errorLabel.innerHTML = "Update failed: " + reason;
+            console.log(reason);
+          });
+        return false;
+      };
 
+      // Trigger unsaved warning on annotations change.
+      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
+      document.getElementById('shot_annotations_beverage_mass').oninput = setAnnotationsUnsaved;
+      document.getElementById('shot_annotations_grind').oninput = setAnnotationsUnsaved;
+      document.getElementById('shot_annotations_description').oninput = setAnnotationsUnsaved;
+      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
+      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
     }, false);
-
     
-    function tryToShortenAUrl() {
-          let requestUrl = `https://git.io/create`;
-    
-      let xhrPromise = new Promise(resolve => {
-        let xhr = new XMLHttpRequest();
-        xhr.open("POST", requestUrl, true);
-        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        xhr.onreadystatechange = function() {
-          if (this.readyState === XMLHttpRequest.DONE) {
-            resolve(this);
-          }
-        };
-        let uri = window.location.href;
-        xhr.send(`url=${encodeURIComponent(uri)}`);
-      });
-      xhrPromise.then(xhr => console.log(xhr));
+    function setAnnotationsUnsaved() {
+      document.getElementById('shot_annotations_unsaved_warning').hidden = false;
     }
-    
+
     function gapi_loaded() {
       // Call for initial page load.
       onHashChange();
@@ -672,16 +779,32 @@
 
 </head>
 <body>
-  <a id="shots-nav"><span class="odd-nav">shots</span></a>
-  <a id="last-nav"><span class="even-nav">last</span></a>
-  <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
-  <a id="first-nav"><span class="even-nav">first</span></a>
-  <a id="minus-10-nav"><span class="odd-nav">-10</span></a>
-  <!-- <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
-  <a id="minus-100-nav"><span class="even-nav">-100</span></a> -->
-  <a id="prev-nav"><span class="even-nav">-1</span></a>
-  <a id="next-nav"><span class="odd-nav">+1</span></a>
+  <!-- Menu Bar -->
+  <div style="display:flex">
+    <a id="shots-nav"><span class="odd-nav">shots</span></a>
+    <a id="last-nav"><span class="even-nav">last</span></a>
+    <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
+    <a id="first-nav"><span class="even-nav">first</span></a>
+    <a id="minus-10-nav"><span class="odd-nav">-10</span></a>
+    <!-- <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
+    <a id="minus-100-nav"><span class="even-nav">-100</span></a> -->
+    <a id="prev-nav"><span class="even-nav">-1</span></a>
+    <a id="next-nav"><span class="odd-nav">+1</span></a>
+    <a id="options-nav" style="margin-left:auto"><span class="options-nav">&#183;&#183;&#183;</span></a>
+  </div>
   <br>
+  
+  <!-- Options Bar -->
+  <div id="options-container" hidden>
+    <div style="display:flex">
+      <span class="odd-option">
+        <select id="shotindex-select"></select>
+        <button id="shotindex-switch-button" type="button">Switch</button>
+      </span>
+      <span class="even-option">goodbye</span>
+    </div>
+  <br>
+  </div>
 
   <div id="api-form-container" hidden>
     <form method="get">
@@ -704,10 +827,53 @@
 
   <div id="single-shot-container" hidden>
     <div class="shot_plot" id="shot_plot"></div>
-    <div class="shot_text" id="file_contents"></div>
-  </div>
-  <div>
-    <button onclick="tryToShortenAUrl();">Shorten plz</button>
+    <div id="shot_annotations_container" hidden>
+      <form>
+        <!--
+        <div class="form">
+          <label class="form-text" for="shot_annotations_dose_mass">Dose (g)</label>
+          <input id="shot_annotations_dose_mass" type="text" name="dose_mass">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_beverage_mass">Beverage (g)</label>
+          <input id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_grind">Grind Setting</label>
+          <input id="shot_annotations_grind" type="text" name="grind">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_description">Description</label>
+          <textarea id="shot_annotations_description" name="description"></textarea>
+        </div>
+        -->
+        
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_dose_mass">Dose (g)</label>
+          <input class="new-form-input" id="shot_annotations_dose_mass" type="text" name="dose_mass">
+        </div>
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_beverage_mass">Beverage (g)</label>
+          <input class="new-form-input" id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
+        </div>
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_grind">Grind Setting</label>
+          <input class="new-form-input" id="shot_annotations_grind" type="text" name="grind">
+        </div>
+        <div class="big-annotation">
+          <label class="new-form-label" for="shot_annotations_description">Description</label>
+          <textarea class="big-input" id="shot_annotations_description" name="description"></textarea>
+        </div>
+        
+        <input id="shot_annotations_row_number" type="hidden" name="row_number">
+        <input id="shot_annotations_file_id" type="hidden" name="file_id">
+        
+        <input class="form-text" id="shot_annotations_update" type="submit" value="Update">
+        <label class="form-warning-text" id="shot_annotations_unsaved_warning" hidden>Changes are unsaved.</label>
+        <label class="form-warning-text" id="shot_annotations_last_error" hidden></label>
+      </form>
+    </div>
+    <div class="shot_text" id="file_contents" hidden></div>
   </div>
 </body>
 </html>

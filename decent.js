@@ -151,6 +151,9 @@ class ShotBuilder extends BaseBuilder {
         
       var data = [pressure, flow, temperatureBasket, temperatureTarget];
       var layout = {
+        titlefont: {
+          family: 'Roboto',
+        },
         title: `Shot @ ${this.timestamp}`,
 //             showlegend: false,
         xaxis: {

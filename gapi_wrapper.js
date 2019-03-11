@@ -351,14 +351,14 @@ class _GapiWrapper {
         var parents = new Set(
           shotIndexFiles
             .flatMap(shotIndexFile => shotIndexFile.parents));
-        return Promise.all(shotIndexFiles, this.getNamesForFileIds(parents));
+        return Promise.all([shotIndexFiles, this.getNamesForFileIds(parents)]);
       })
     .then(
       ([shotIndexFiles, parentIdsToNames]) => {
         return shotIndexFiles
           .map(
             shotIndexFile => {
-              var parents = shotFile.parents.map(
+              var parents = shotIndexFile.parents.map(
                 parentId => parentIdsToNames.get(parentId));
               return new ShotIndexFileMetadata(shotIndexFile.id, shotIndexFile.name, parents, shotIndexFile.modifiedTime);
             })
@@ -376,7 +376,10 @@ class _GapiWrapper {
   }
   
   // TODO: return a copy
-  /** Use once authenticated and authorized. */
+  /**
+   * Returns file contents.
+   * Use once authenticated and authorized.
+   */
   getFileContents(fileId) {
     // TODO: implement cache size constraints to avoid cache getting too big.
     var cacheKey = this._makeGetFileContentsCacheKey(fileId);
@@ -395,19 +398,27 @@ class _GapiWrapper {
       function(response) {
         console.log(response);
         return response.body;
-      },
-      function(reason) {
-        // Throw
-        console.log(reason.result.error.message);
       }
     );
     this.rpcCache.set(cacheKey, rpcPromise);
     return rpcPromise;
   }
   
+  getFileIndexMetadata(shotFileId, shotIndexFileId) {
+    // TODO: finer grain retrieval.
+    return this.getAllShotAnnotations(shotIndexFileId)
+      .then(
+        shotFileIdToAnnotations => {
+          if (shotFileIdToAnnotations.has(shotFileId)) {
+            return shotFileIdToAnnotations.get(shotFileId);
+          }
+          return {};
+        });
+  }
+  
   static currentShotsSchemaVersionNumber() { return 'v1'; }
   static currentShotsHeader() {
-    return ['File ID', 'Last Updated', ' Dose Mass', 'Beverage Mass', 'Grind', 'Description', 'Coffee Log ID']
+    return ['File ID', 'Last Updated', 'Dose Mass', 'Beverage Mass', 'Grind', 'Description', 'Coffee Source ID']
   }
   static arraysAreEqualValues(a, b) {
     if (a.length !== b.length) {
@@ -421,13 +432,13 @@ class _GapiWrapper {
     return true;
   }
   
-  // TODO: move this to another file. doesn't belong in gapi wrapper necessarily.
+  // TODO: move this to another file. shot file understanding doesn't belong in gapi wrapper necessarily.
   getAllShotAnnotations(annotationsFileId) {
     // TODO: Shots schema v2 should have:
     //  -data checksum
     
     if (this.annotationsCache.has(annotationsFileId)) {
-      return this.annotationsCache.get(annotationsFileId);
+      return Promise.resolve(this.annotationsCache.get(annotationsFileId));
     }
     
     // All cells of Shots.
@@ -438,7 +449,7 @@ class _GapiWrapper {
           `majorDimension=ROWS`,
     })
       .then(
-        function(response) {
+        response => {
           var matrix = response.result.values;
           var schema = matrix[0];
           var header = matrix[1];
@@ -457,23 +468,23 @@ class _GapiWrapper {
           for (let i = 2; i < matrix.length; ++i) {
             var row = matrix[i];
             var fileId = row.shift();
-            var lastAnnotatedDate = row.shift();
+            var lastUpdated = row.shift();
             var doseMass = row.shift();
             var beverageMass = row.shift();
             var grind = row.shift();
             var description = row.shift();
-            var coffeeLogId = row.shift();
+            var coffeeSourceId = row.shift();
             
             if (fileId === undefined) {
               return;
             }
             shotIdToAnnotations.set(fileId, {
-              lastAnnotatedDate: lastAnnotatedDate,
+              lastUpdated: lastUpdated,
               doseMass: doseMass,
               beverageMass: beverageMass,
               grind: grind,
               description: description,
-              coffeeLogId: coffeeLogId,
+              coffeeSourceId: coffeeSourceId,
               rowNumber: i+1,
             });
           }
@@ -481,6 +492,116 @@ class _GapiWrapper {
           this.annotationsCache.set(annotationsFileId, shotIdToAnnotations);
           return shotIdToAnnotations;
         });
+    return rpcPromise;
+  }
+  
+  // TODO: coffee source id
+  updateShotAnnotations(fileId, annotationsFileId, annotations) {
+    if (annotations.rowNumber === '') {
+      // Append.
+      var values = [[fileId, annotations.lastUpdated, annotations.doseMass, annotations.beverageMass, annotations.grind, annotations.description]];
+      return GapiWrapper.appendSheetValues(annotationsFileId, 'Shots', values)
+        .then(updates => {
+          if (this.annotationsCache.has(annotationsFileId)) {
+            var fileIdToAnnotations = this.annotationsCache.get(annotationsFileId);
+            if (!fileIdToAnnotations.has(fileId)) {
+              fileIdToAnnotations.set(fileId, {});
+            }
+            var existingAnnotations = fileIdToAnnotations.get(fileId);
+            existingAnnotations.lastUpdated = annotations.lastUpdated;
+            existingAnnotations.doseMass = annotations.doseMass;
+            existingAnnotations.beverageMass = annotations.beverageMass;
+            existingAnnotations.grind = annotations.grind;
+            existingAnnotations.description = annotations.description;
+            
+            // Example: Shots!A9:F9
+            var matches = /:[a-zA-Z]+([0-9]+)$/.exec(updates.updatedRange);
+            existingAnnotations.rowNumber = (matches !== null) ? matches[1] : "";
+          }
+          return updates;
+        });
+      // TODO: then update cache.
+    } else {
+      // Set.
+      var range = `Shots!B${annotations.rowNumber}:F${annotations.rowNumber}`;
+      var values = [[/*no fileId*/ annotations.lastUpdated, annotations.doseMass, annotations.beverageMass, annotations.grind, annotations.description]];
+      return GapiWrapper.setSheetValues(annotationsFileId, range, values)
+        .then(result => {
+          if (this.annotationsCache.has(annotationsFileId)) {
+            var fileIdToAnnotations = this.annotationsCache.get(annotationsFileId);
+            if (!fileIdToAnnotations.has(fileId)) {
+              fileIdToAnnotations.set(fileId, {});
+            }
+            var existingAnnotations = fileIdToAnnotations.get(fileId);
+            existingAnnotations.lastUpdated = annotations.lastUpdated;
+            existingAnnotations.doseMass = annotations.doseMass;
+            existingAnnotations.beverageMass = annotations.beverageMass;
+            existingAnnotations.grind = annotations.grind;
+            existingAnnotations.description = annotations.description;
+            existingAnnotations.rowNumber = annotations.rowNumber;
+          }
+          return result;
+        });
+      // TODO: then update cache.
+    }
+  }
+  
+  /** 
+   * range should be the sheet name and cells to set.
+   * values should be a two-dimensional area representing rows of columns of cells.
+   */
+  setSheetValues(spreadsheetId, range, values) {
+    return gapi.client.request({
+      'path': `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
+      'params': {
+        'valueInputOption': 'RAW',
+      },
+      'method': 'PUT',
+      'body': {
+        'range': range,
+        'values': values,
+      },
+    })
+    .then(
+      function(response) {
+        console.log(response);
+        var result = response.result;
+        if (result.updatedRange !== undefined && result.updatedRange !== '') {
+          return result;
+        } else {
+          throw `Failed to set to spreadsheetId ${spreadsheetId} range ${range} with values ${values}.`;
+        }
+      }
+    );
+  }
+  
+  /** 
+   * range should be the sheet name.
+   * values should be a two-dimensional area representing rows of columns of cells.
+   */
+  appendSheetValues(spreadsheetId, range, values) {
+    return gapi.client.request({
+      'path': `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append`,
+      'params': {
+        'valueInputOption': 'RAW',
+        'insertDataOption': 'INSERT_ROWS',
+      },
+      'method': 'POST',
+      'body': {
+        'values': values,
+      },
+    })
+    .then(
+      function(response) {
+        console.log(response);
+        var result = response.result;
+        if (result.updates !== undefined && result.updates.updatedRange !== '') {
+          return result.updates;
+        } else {
+          throw `Failed to append to spreadsheetId ${spreadsheetId} range ${range} with values ${values}.`;
+        }
+      }
+    );
   }
 }
 
