@@ -12,12 +12,37 @@
   font-family: 'Roboto', sans-serif;
   font-weight: 900;
 }
-.options-nav {
-  color: rgb(0,0,0);
+
+
+
+.menu-bar {
+  display: flex;
+}
+.menu-item:nth-child(odd) {
+  color: gray;
   font-size: 5vw;
   margin: 1vh .5vw;
   font-family: 'Roboto', sans-serif;
-  font-weight: 900;  
+  font-weight: 900;
+}
+.menu-item:nth-child(even) {
+  color: rgb(128,0,0);
+  font-size: 5vw;
+  margin: 1vh .5vw;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
+}
+
+.options-nav {
+  margin-left: auto; /* Flex pushes to right edge. */
+  color: rgb(0,0,0);
+  font-size: 5vw;
+  /* margin: 1vh .5vw; */
+  margin-top: 1vh;
+  margin-bottom: 1vh;
+  margin-right: .5vw;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
 }
 .odd-option {
   color: rgb(0, 0, 0);
@@ -117,7 +142,8 @@ label, input[type=text], textarea {
   font-weight: 300;
 }
 
-.shot_plot {
+/*.shot_plot { */
+.single-shot-plot {
   /* Force a ratio of 5:1 for all <div>
    .viewportRatio(4, 3); */
   width: 100vw;

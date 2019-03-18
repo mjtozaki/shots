@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,900" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="shots.css">
+  
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-1.45.2.min.js"></script>
+</head>
+<body>
+  <div id="root" />
+
+  <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-hyperscript-helpers@2.0.0/umd/react-hyperscript-helpers.min.js"></script>
+  <script src="https://unpkg.com/react-plotly.js@2.2.0/dist/create-plotly-component.min.js"></script> <!-- 2.3.0 is broken. -->
+
+  
+  <script src="decent.js" type="text/javascript"></script>
+  <script src="gapi_wrapper.js" type="text/javascript"></script>
+  <script src="gapi_shot_storage.js" type="text/javascript"></script>
+  <script src="shots_app.js" type="text/javascript"></script>
+  <script type="text/javascript">
+    // From https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API#Testing_for_availability
+    function storageAvailable(type) {
+      try {
+        var storage = window[type],
+            x = '__storage_test__';
+        storage.setItem(x, x);
+        storage.removeItem(x);
+        return true;
+      }
+      catch(e) {
+        return e instanceof DOMException && (
+          // everything except Firefox
+          e.code === 22 ||
+          // Firefox
+          e.code === 1014 ||
+          // test name field too, because code might not be present
+          // everything except Firefox
+          e.name === 'QuotaExceededError' ||
+          // Firefox
+          e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+          // acknowledge QuotaExceededError only if there's something already stored
+          storage.length !== 0;
+      }
+    }
+
+    console.log("before gapi_loaded function declaration.");
+    function gapi_loaded() {
+      var enableLocalStorage = storageAvailable('localStorage');
+      const rootContainer = document.querySelector('#root');
+      var shotsApp = ReactDOM.render(
+        React.createElement(ShotsApp, {
+          enableLocalStorage: enableLocalStorage,
+        }),
+        rootContainer);
+      shotsApp.route();
+    }
+  </script>
+
+  
+  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
+</body>
+</html>

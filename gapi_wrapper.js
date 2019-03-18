@@ -1,21 +1,53 @@
 "use strict";
 
-class TimedCache {
-  // TODO: cache groups with their own cache durations and element limits.
-  // e.g. parents name lookup cache should be forever (unlikely a folder will be renamed)
-  // e.g. shot file contents should be limited to something like 10 elements. And cache duration should be forever.
-  constructor(cacheDuration) {
-    this.cacheDuration = cacheDuration;
+/**
+ * Cache entry by category. Categories dictate expiration times and maximum item limits.
+ * May delete expired items when using get(). Deletes items FIFO when maximum item limit reached.
+ * e.g. parents name lookup cache should be forever (unlikely a folder will be renamed)
+ * e.g. shot file contents should be limited to something like 10 elements. And cache duration should be forever.
+ */
+class _TimedCache {
+  /**
+   * Args:
+   *   config: object
+   *     categories: [object]
+   *       name: category name.
+   *       shelfLife: ms until expired. undefined means never expires.
+   *       quantity: # elements cached. undefined means no limit.
+   */
+  constructor(config, defaultShelfLife=_TimedCache.DEFAULT_SHELF_LIFE) {
+    // this.cacheDuration = cacheDuration;
     this.table = new Map();
+    this.categories = new Map();
+    config.categories.forEach(category => {
+      this.categories.set(category.name, {
+        shelfLife: category.shelfLife,
+        spaceRemaining: category.quantity,
+        // Maintain linked list 
+        head: _TimedCache.EMPTY_POINTER,
+        tail: _TimedCache.EMPTY_POINTER,
+      });
+    });
+    this._defaultShelfLife = defaultShelfLife;
   }
 
   _has(key) {
     if (this.table.has(key)) {
-      var wrapped = this.table.get(key);
-      if (Date.now() < wrapped.time + this.cacheDuration) {
+      var current = this.table.get(key);
+      if (Date.now() < current.expiresAt) {
         return true;
       }
-      this.table.delete(key);
+      var category = current.category;
+      // This and all elements before it are toast.
+      while (category.head !== current.next) {
+        this.table.delete(category.head.key);
+        ++category.spaceRemaining;
+        category.head = category.head.next;
+      }
+      if (category.head === _TimedCache.EMPTY_POINTER) {
+        // Tail was obliterated. Update it.
+        category.tail = _TimedCache.EMPTY_POINTER;
+      }
     }
     return false;
   }
@@ -25,13 +57,64 @@ class TimedCache {
     }
     return null;
   }
-  set(key, value) {
-    this.table.set(key, TimedCache.wrapWithTime(value));
+  set(key, value, categoryName) {
+    if (!this.categories.has(categoryName)) {
+      throw "Category doesn't exist."
+    }
+    var category = this.categories.get(categoryName);
+    // For updates, need to extract existing entry from FIFO.
+    if (this.table.has(key)) {
+      var prev = this.table.get(key).prev;
+      var next = this.table.get(key).next;
+      if (prev === _TimedCache.EMPTY_POINTER) {
+        // This is head.
+        category.head = next;
+      } else {
+        prev.next = next;
+      }
+      if (next === _TimedCache.EMPTY_POINTER) {
+        // This is tail.
+        category.tail = prev;
+      } else {
+        next.prev = prev;
+      }
+      ++category.spaceRemaining;
+    }
+    var current = {
+      key: key, // For look-up during delete upon expiration.
+      value: value,
+      expiresAt: this._getExpirationTime(category.shelfLife),
+      category: category, // For category management during get.
+      prev: category.tail,
+      next: _TimedCache.EMPTY_POINTER,
+    };
+    this.table.set(key, current);
+    // Update tail.
+    if (category.tail !== _TimedCache.EMPTY_POINTER) {
+      category.tail.next = current;
+    }
+    category.tail = current;
+    // Update head.
+    if (category.head === _TimedCache.EMPTY_POINTER) {
+      category.head = current;
+    }
+    // Remove head element if we've gone over budget.
+    if (--category.spaceRemaining < 0) {
+      category.head = category.head.next;
+      ++category.spaceRemaining;
+    }
   }
-  static wrapWithTime(value) {
-    return {time: Date.now(), value: value};
+  _getExpirationTime(shelfLife) {
+    var expiresAt = Date.now();
+    expiresAt += (shelfLife !== undefined) ? shelfLife : this._defaultShelfLife;
+    return expiresAt;
   }
 }
+
+// Used as the empty pointer in the cache linked list.
+_TimedCache.EMPTY_POINTER = {};
+// Default is 25d.
+_TimedCache.DEFAULT_SHELF_LIFE = 2147483648;
 
 // Parse the date out of shot file filenames.
 // Assume file will CONTAIN this pattern, not exactly match.
@@ -75,7 +158,24 @@ class _GapiWrapper {
     this.whenApiKeyAndClientIdAuthed = null;
     this.whenClientAndAuthLoaded = null;
     const CACHE_DURATION = 1 * 60 * 1000; // Minutes.
-    this.rpcCache = new TimedCache(CACHE_DURATION);
+    this.rpcCache = new _TimedCache({
+      categories: [
+        {
+          name: 'dirs',
+          // Unlimited shelf life and items.
+        },
+        {
+          name: _GapiWrapper._GET_FILE_CONTENTS_CACHE_CATEGORY,
+          // Unlimited shelf life.
+          quantity: 20, // TODO: specify in bytes.
+        },
+        {
+          name: _GapiWrapper._LISTING_CACHE_CATEGORY,
+          shelfLife: 60*1000,
+          quantity: 5, // 5 different types of listings?
+        },
+      ],
+    }, CACHE_DURATION);
     
     // Cache that never expires. Different from rpc cache because it is derived from an RPC, and it is mutable.
     this.annotationsCache = new Map();
@@ -161,6 +261,149 @@ class _GapiWrapper {
         }
       );
     return this.whenApiKeyAndClientIdAuthed;
+  }
+  
+  _makeCacheKeyPrefixForAuth() {
+    return `${this.activeApiKey},${this.activeClientId},`;
+  }
+  
+  _makeCacheKeyForDir(fileId) {
+    return this._makeCacheKeyPrefixForAuth() + `dir,${fileId}`;
+  }
+  
+  async _getDirectoryPaths(requestedParentIds) {
+    // Copy to prevent modification of arg.
+    var parentIds = new Set(requestedParentIds);
+    
+    var directories = new Map();
+    parentIds.forEach(parentId => {
+      var cache = this.rpcCache.get(this._makeCacheKeyForDir(parentId));
+      if (cache !== null) {
+        directories.set(parentId, cache);
+        parentIds.delete(parentId);
+      }
+    });
+    
+    // Each look-up stage represents a level up the tree.
+    while (parentIds.size > 0) {
+      var batch = gapi.client.newBatch();
+      // Queue up queries for this parents at this depth.
+      parentIds.forEach(parentId => {
+        batch.add(
+          gapi.client.request({
+            'path': `https://www.googleapis.com/drive/v3/files/${parentId}`,
+            'params': {
+              'fields': 'name,parents',
+            },
+          }),
+          {
+            id: parentId,
+          });
+      });
+      // Remove the current query parents from the queue.
+      parentIds.clear();
+
+      var response = await batch;
+      if (response.error !== undefined) {
+        throw response.error.errors[0].message;
+      }
+      var idToFileMapping = response.result;
+      // Record files by fileId, and add the next level of parents.
+      Object.keys(idToFileMapping)
+        .forEach(fileId => {
+          var file = idToFileMapping[fileId].result;
+          directories.set(fileId, file);
+          this.rpcCache.set(this._makeCacheKeyForDir(fileId), file, 'dirs');
+          if (file.parents !== undefined && file.parents.length > 0) { // Root (e.g. "My Drive") has undefined parents.
+            parentIds.add(file.parents[0]);
+          }
+          /////////////////////
+          // var name = idToFileMapping[fileId].result.name;
+          // var cacheKey = this._makeNameForFileIdCacheKey(fileId);
+          // this.rpcCache.set(cacheKey, name);
+          // results.set(fileId, name);
+        });
+      // Ignore parentIds that were already looked-up.
+      parentIds.forEach(parentId => {
+        if (directories.has(parentId)) {
+          parentIds.delete(parentId);
+        }
+      }); 
+    }
+    
+    // Construct the paths for the requested parents.
+    var result = new Map();
+    requestedParentIds.forEach(leafId => {
+      var path = [];
+      var directoryId = leafId;
+      while (directories.has(directoryId)) {
+        var directory = directories.get(directoryId);
+        path.unshift(directory.name);
+        directoryId = (directory.parents !== undefined && directory.parents.length > 0) ? directory.parents[0] : undefined;
+      }
+      // TODO: consider making path an array of dirs for more flexibility. 
+      path = "/" + path.join("/");
+      result.set(leafId, {
+        id: leafId,
+        path: path,
+      });
+    });
+    return result;
+  }
+  
+  _makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken) {
+    return this._makeCacheKeyPrefixForAuth() + `listFiles,${q},${orderBy},${pageSize},${pageToken}`;
+  }
+
+  async listFiles(q, orderBy, pageSize, pageToken) {
+    var response;
+    
+    var cacheKey = this._makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken);
+    var cached = this.rpcCache.get(cacheKey);
+    if (cached !== null) {
+      // TODO: protect from modification by client.
+      response = cached;
+    } else {
+      response = await gapi.client.request({
+        path: 'https://www.googleapis.com/drive/v3/files',
+        params: {
+          spaces: 'drive',
+          q: q,
+          fields: 'nextPageToken,files(id,name,parents)',
+          orderBy: orderBy,
+          pageSize: pageSize,
+          pageToken: pageToken,
+        },
+      });
+    }
+
+    if (response.error !== undefined) {
+      if (response.error.errors !== undefined && response.error.errors[0].location === 'pageToken') {
+        throw new GapiPageTokenError(response.error.errors[0].message);
+      }
+      throw new GapiError(response.error.errors[0].message);
+    }
+    
+    this.rpcCache.set(cacheKey, response, _GapiWrapper._LISTING_CACHE_CATEGORY);
+    var files = response.result.files;
+    
+    // We will only respect the first parent of each file.
+    var parents = new Set(
+      files
+        .map(file => file.parents[0]));
+    // Get paths for the parents.
+    var parentsById = await this._getDirectoryPaths(parents);
+    
+    var filesWithPaths = files.map(file => {
+      var fileWithPath = {
+        id: file.id,
+        name: file.name,
+        parent: parentsById.get(file.parents[0]),
+      };
+      return fileWithPath;
+    });
+    
+    return [filesWithPaths, response.nextPageToken];
   }
   
   _makeListShotFilesCacheKey(parentFilterSet) {
@@ -371,8 +614,8 @@ class _GapiWrapper {
       .then(_GapiWrapper.deepCopyFileList);
   }
   
-  _makeGetFileContentsCacheKey(fileId) {
-    return `${this.activeApiKey},${this.activeClientId},getFileContents,${fileId}`;
+  _makeCacheKeyForGetFileContents(fileId) {
+    return this._makeCacheKeyPrefixForAuth() + `getFileContents,${fileId}`;
   }
   
   // TODO: return a copy
@@ -380,28 +623,27 @@ class _GapiWrapper {
    * Returns file contents.
    * Use once authenticated and authorized.
    */
-  getFileContents(fileId) {
+  async getFileContents(fileId) {
     // TODO: implement cache size constraints to avoid cache getting too big.
-    var cacheKey = this._makeGetFileContentsCacheKey(fileId);
-    var cacheValue = this.rpcCache.get(cacheKey);
-    if (cacheValue !== null) {
-      return cacheValue;
+    var cacheKey = this._makeCacheKeyForGetFileContents(fileId);
+    var cached = this.rpcCache.get(cacheKey);
+    if (cached !== null) {
+      return cached;
     }
     
-    var rpcPromise = gapi.client.request({
+    var response = await gapi.client.request({
       'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
       'params': {
          'alt': 'media',
       },
-    })
-    .then(
-      function(response) {
-        console.log(response);
-        return response.body;
-      }
-    );
-    this.rpcCache.set(cacheKey, rpcPromise);
-    return rpcPromise;
+    });
+    
+    if (response.error !== undefined) {
+      throw response.error.errors[0].message;
+    }
+    
+    this.rpcCache.set(cacheKey, response.body, _GapiWrapper._GET_FILE_CONTENTS_CACHE_CATEGORY);
+    return response.body;
   }
   
   getFileIndexMetadata(shotFileId, shotIndexFileId) {
@@ -604,5 +846,32 @@ class _GapiWrapper {
     );
   }
 }
+
+_GapiWrapper._LISTING_CACHE_CATEGORY = 'listing';
+_GapiWrapper._GET_FILE_CONTENTS_CACHE_CATEGORY = 'file_contents';
+
+
+class GapiError extends Error {
+  constructor(...params) {
+    super(...params);
+    
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, GapiError);
+    }
+  }
+}
+
+class GapiPageTokenError extends Error {
+  constructor(...params) {
+    super(...params);
+    
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, GapiError);
+    }
+  }
+}
+
+
+
 
 window.GapiWrapper = new _GapiWrapper();

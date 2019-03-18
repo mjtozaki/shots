@@ -509,7 +509,7 @@
                   shotLinkHashQueryMap.set('shot_file_id', metadata.fileId);
                   var shotLink = hashQueryMapToLocationString(shotLinkHashQueryMap); //hashToLocationString(shotLinkHash);
                   var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
-                  entry.innerHTML = `<a href="${shotLink}"><h3>${listingLabel.timeLabel}</h3><h4>${listingLabel.fileSystemLabel}</h4></a>`;
+                  entry.innerHTML = '<a href="' + shotLink + '"><h3>' + listingLabel.timeLabel + '</h3><h4>' + listingLabel.fileSystemLabel + '</h4></a>';
                   entry.className = 'listing-entry';
                   listingContainer.appendChild(entry);
                 });
@@ -769,8 +769,9 @@
     }
 
     function gapi_loaded() {
-      // Call for initial page load.
-      onHashChange();
+      const rootContainer = document.querySelector('#root');
+      var shotsApp = ReactDOM.render(h(ShotsApp), rootContainer);
+      shotsApp.route();
     }
   </script>
 
@@ -779,6 +780,10 @@
 
 </head>
 <body>
+
+
+  <div id="root" />
+
   <!-- Menu Bar -->
   <div style="display:flex">
     <a id="shots-nav"><span class="odd-nav">shots</span></a>
@@ -875,5 +880,12 @@
     </div>
     <div class="shot_text" id="file_contents" hidden></div>
   </div>
+  
+  <!-- Load React. -->
+  <!-- Note: when deploying, replace "development.js" with "production.min.js". -->
+  <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-hyperscript-helpers@2.0.0/umd/react-hyperscript-helpers.min.js"></script>
+  <script src="shots_app.js"></script>
 </body>
 </html>
