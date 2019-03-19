@@ -180,7 +180,7 @@ class ShotsApp extends React.Component {
     var nextParams = this._getPersistentParams(nextState);
     
     switch (nextState.redirect) {
-      case 'absolute_index':
+      case 'absolute_index': {
         if (nextState.absoluteIndex < 0) {
           // Index from end means get descending list.
           let numResultsRequired = Math.abs(nextState.absoluteIndex); // e.g. -n means we need nth result from descending list.
@@ -196,8 +196,9 @@ class ShotsApp extends React.Component {
         }
         view = 'single';
         break;
+      }
 
-      case 'relative_index':
+      case 'relative_index': {
         // For relative index we'll do a vanilla descending list and adjust as needed.
         // Required parameters.
         let currentShotFileId = nextState.shotFileId;
@@ -264,12 +265,31 @@ class ShotsApp extends React.Component {
         }
         view = 'single';
         break;
+      }
+      
+      case 'yesterday': {
+        // Do this more reusably.
+        const H_TO_M = 60;
+        const M_TO_S = 60;
+        const S_TO_MS = 1000;
+        let dateYesterday = new Date(Date.now() - (24 * H_TO_M * M_TO_S * S_TO_MS));
+        // e.g. 20190303
+        let yesterday = dateYesterday.getFullYear() +
+          ("0" + (dateYesterday.getMonth()+1)).slice(-2) +
+          ("0" + dateYesterday.getDate()).slice(-2);
+        let [shots] = await this.shotStorage.listShots({parentIds: [...nextState.parentFilterSet], latest: yesterday}, {numResults: 1});
+        if (shots.length === 0) {
+          break;
+        }
+        view = 'single';
+        nextShotFileId = shots[0].id;
+        break;
+      }
         
-    // TODO: case 'yesterday':
-        
-      default:
+      default: {
         view = 'list';
         break;
+      }
     }
     
     if (view === undefined) {
@@ -443,9 +463,27 @@ class ShotsList extends React.Component {
     if (this.props.listData === undefined) {
       return [];
     }
-    let children = this.props.listData
+    let lastDate = new Date(0);
+    let lastDateCount = 0;
+    let listDataWithDailyCount = this.props.listData
+      .reduceRight((wrappers, shot) => {
+        if (lastDate.toDateString() !== shot.date.toDateString()) {
+          lastDate = shot.date;
+          lastDateCount = 0;
+        }
+        let dailyCount = ++lastDateCount;
+        wrappers.push({
+          shot: shot,
+          dailyCount: dailyCount,
+        });
+        return wrappers;
+      },
+      [])
+      .reverse();
+    let children = listDataWithDailyCount
       .map(
-        shot => h(ShotsListEntry, {
+        ({shot, dailyCount}) => h(ShotsListEntry, {
+          dailyCount: dailyCount,
           defaultHashPrefix: this.props.defaultHashPrefix,
           shot: shot,
         }));
@@ -459,12 +497,13 @@ class ShotsListEntry extends React.Component {
   }
   render() {
     let shotLocation = this.props.defaultHashPrefix + `view=single&shot_file_id=${this.props.shot.id}`;
+    let formattedDate = moment(this.props.shot.date).format(`ddd MMM DD gggg (#${this.props.dailyCount}) HH:mm:ss ZZ`);
+    let shotTitle = formattedDate;
+    // TODO: this probably outputs a double '/' if child of root.
+    let shotDetails = `${this.props.shot.parent.path}/${this.props.shot.name}`;
     return div('.shots-list-entry', [
-      a({href: shotLocation}, [
-        div('.shots-list-entry-title', this.props.shot.date.toDateString()),
-        // TODO: double '/' if child of root.
-        div('.shots-list-entry-details', `${this.props.shot.parent.path}/${this.props.shot.name}`),
-      ]),
+      div('.shots-list-entry-title', [a({href: shotLocation}, shotTitle)]),
+      div('.shots-list-entry-details', [a({href: shotLocation}, shotDetails)]),
     ]);
   }
 }

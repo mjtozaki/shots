@@ -137,6 +137,22 @@ label, input[type=text], textarea {
   font-weight: 300;
 }
 
+.shots-list-entry {
+  margin-bottom: 1vh;
+}
+
+.shots-list-entry-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+  font-size: 2vw;
+}
+
+.shots-list-entry-details {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+  font-size: 1vw;
+}
+
 .listing-entry {
   font-family: 'Roboto', sans-serif;
   font-weight: 300;
