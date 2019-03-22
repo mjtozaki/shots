@@ -38,18 +38,6 @@ class GapiShotStorage {
     return apiKey === this._apiKey && clientId === this._clientId;
   }
   
-  
-  
-  // From https://stackoverflow.com/a/2117523
-  static _uuidv4() {
-    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    )
-  }
-  
-  
-  
-  
   _takeContinuation(continuationToken) {
     if (!this._continuations.has(continuationToken)) {
       return null;
@@ -208,7 +196,7 @@ class GapiShotStorage {
           nextContinuationAsFilters = nextContinuationAsFilters.split('=');
 
           var dateBound = GapiShotStorage._makeContinuationAsFiltersString(results[numResults-1].date, ascending);
-          nextContinuationToken = `${dateBound}&${GapiShotStorage._uuidv4()}`; // e.g. earliest=20190101T120000&xxxxxxxxxxxxxxx-xxxxx
+          nextContinuationToken = `${dateBound}&${uuidv4()}`; // e.g. earliest=20190101T120000&xxxxxxxxxxxxxxx-xxxxx
           var nextContinuation = {
             buffer: leftover,
             nextPageFilters: nextContinuationAsFilters, // How to continue after the continuation, with filters.
@@ -283,8 +271,9 @@ class GapiShotStorage {
    */
   async getShot(shotId) {
     await this._gapiWrapper.ensureApiKeyAndClientIdAuthed(this._apiKey, this._clientId);
-    var shotFileContents = await this._gapiWrapper.getFileContents(shotId);
-    return this._shotCodec.getShotFromFileContents(shotFileContents);
+    let shotFile = await this._gapiWrapper.getFile(shotId);
+    let shotFileContents = await this._gapiWrapper.getFileContents(shotId);
+    return this._shotCodec.getShotFromFileContents(shotFileContents, shotFile);
   }
   
   /**

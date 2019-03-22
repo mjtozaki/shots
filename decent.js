@@ -3,7 +3,7 @@
 class ShotCodec {
   constructor() {}
 
-  getShotFromFileContents(contents) {
+  getShotFromFileContents(contents, shotFile) {
     var S_TO_MS = 1000;
     var attrs = TclCodec.deserializeTclArray(contents);
     if (!attrs.has('settings')) {
@@ -23,15 +23,13 @@ class ShotCodec {
     var espressoTemperatureBasket = TclCodec.tclListToNumberArray(attrs.get('espresso_temperature_basket'));
     var espressoTemperatureMix = TclCodec.tclListToNumberArray(attrs.get('espresso_temperature_mix'));
     
-    console.log("espresso_elapsed: " + attrs.get('espresso_elapsed'));
-    console.log("espressoElapsed: " + espressoElapsed);
     var numPoints = espressoElapsed.length;
     if (![espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
         .every(sequence => sequence.length == numPoints)) {
       throw ShotSyntaxError("Number of data points do not match across all dimensions.");
     }
 
-    return {
+    let shotData = {
       timestamp: new Date(Number(attrs.get('clock') * S_TO_MS)),
       elapsed: espressoElapsed,
       pressure: espressoPressure,
@@ -42,7 +40,12 @@ class ShotCodec {
       temperatureMix: espressoTemperatureMix,
       temperatureTarget: new Array(numPoints).fill(Number(settings.get('espresso_temperature'))),
       author: settings.get('author'),
+      // TODO: maybe this should go in a different layer. Clear separation between shot DATA and shot METADATA.
+      filename: shotFile.name,
+      parentPath: shotFile.parent.path,
     };
+    console.log(shotData);
+    return shotData;
   }
 }
 

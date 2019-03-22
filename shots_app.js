@@ -3,6 +3,7 @@
 // Let's pollute global for simplicity.
 var a = rhh.a;
 var br = rhh.br;
+var button = rhh.button;
 var div = rhh.div;
 var h = rhh.h;
 var h2 = rhh.h2;
@@ -28,10 +29,12 @@ class ShotsApp extends React.Component {
     super(props);
     
     // State we might change but shouldn't be used with setState().
+    this.shotSerializer = new ShotSerializer();
     this.shotStorage = new GapiShotStorage(GapiWrapper, new ShotCodec()); 
 
     // this bindings.
     this.route = this.route.bind(this);
+    this.requestShotSharingLink = this.requestShotSharingLink.bind(this);
     this.toggleOptions = this.toggleOptions.bind(this);
     
     // Top-level events.
@@ -151,6 +154,8 @@ class ShotsApp extends React.Component {
       ['redirect', 'redirect'],
       ['absoluteIndex', 'absolute_index', absolute_index => Math.floor(absolute_index)],
       ['relativeIndex', 'relative_index', relative_index => Math.floor(relative_index)],
+      ['byoAlias', 'byo_alias'],
+      ['compressedShotData', 'shot_data'],
     ]
     
     ephemeralInputs.forEach(([stateKey, paramsKey, process]) => {
@@ -340,6 +345,10 @@ class ShotsApp extends React.Component {
       
     } else if (nextState.view === 'single') {
       await this.routeSingle(nextState);
+
+    } else if (nextState.view === 'byo_single') {
+      // TODO: route this!!!!
+      this.routeByoSingle(nextState);
     }
 
     this.setState(nextState);
@@ -350,13 +359,110 @@ class ShotsApp extends React.Component {
     nextState.listData = shots;
   }
   async routeSingle(nextState) {
+    // TODO: need to make sure we only go here if we are switching to a shot. not for temporary things done on the same page.
+    //       Maybe a sophisticated router is necessary.
     let shot = await this.shotStorage.getShot(nextState.shotFileId);
     nextState.shotData = shot;
+    nextState.shotSharingLinkGetSuccess = undefined;
+    nextState.shotSharingLink = undefined;
+  }
+  routeByoSingle(nextState) {
+    try {
+      let shotData = this.shotSerializer.deserializeFromUri(nextState.compressedShotData);
+    } catch (e) {
+      console.log("Error decoding shot. Reason: " + e);
+    }
+    nextState.shotData = shotData;
+    nextState.byoAlias = nextState.byoAlias;
   }
   
   static _showRelativeMenuControls(view) {
     // Maintain list of views that can have relative controls.
     return view === 'single';
+  }
+  
+
+  
+  
+  async requestShotSharingLink(shotData) {
+    let readyForUri = this.shotSerializer.serializeForUri(shotData);
+    
+    // Get url up to hash
+    let hashQueryStart = window.location.href.indexOf('#');
+    if (hashQueryStart === -1) {
+      hashQueryStart = window.location.href.length;
+    }
+    let uriBase = window.location.href.substring(0, hashQueryStart);
+    
+    let alias = encodeURIComponent(shotData.filename) + '-' + uuidv4();
+    let tinyUrl = `https://tinyurl.com/${alias}`;
+    
+    // byo_single params.
+    let params = {
+      view: 'byo_single',
+      byo_alias: tinyUrl, // Optimistically put it here since we can't figure out the sharing link otherwise.
+      shot_data: readyForUri,
+    };
+    let uri = uriBase + this._paramsToHashLocation(params);
+
+    // Request short link.
+    // e.g. https://tinyurl.com/create.php?source=&url=http%3A%2F%2Fgoogle.com%2Fhelloworld&submit=Make+TinyURL%21&alias=
+    //let requestUrl = `https://tinyurl.com/create.php?source=&url=${encodeURIComponent(uri)}&submit=Make+TinyURL%21&alias=${alias}`;
+    //let requestUrl = `https://tinyurl.com/create.php?alias=${alias}`; // api-create.php does not support parameter 'alias'.
+//    let requestUrl = `https://tinyurl.com/api-create.php`; // api-create.php does not support parameter 'alias'.
+//    let requestUrl = `https://slink.be/one.php`;
+    //let requestUrl = `https://bitly.com/data/shorten`;
+    //let requestUrl = 'https://is.gd/create.php';
+    // let requestUrl = 'https://is.gd/create.php?url=${encodeURIComponent(uri)}';
+    // let requestUrl = `https://git.io/create`;
+    // let requestUrl = 'http://gg.gg/create';
+    
+    // uri = window.location.href;    
+    // let requestUrl = `http://shorl.com/create.php?url=${encodeURIComponent(uri)}&go=Shorlify%21`;
+    
+    let xhr = await new Promise(resolve => {
+      let xhr = new XMLHttpRequest();
+      // xhr.open("POST", requestUrl, true);
+      xhr.open("GET", requestUrl, true);
+      // xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      //xhr.responseType = 'json';
+      //xhr.overrideMimeType('text/plain');
+      xhr.onreadystatechange = function() {
+        if (this.readyState === XMLHttpRequest.DONE) {
+          resolve(this);
+        }
+      };
+      // xhr.send(`url=${encodeURIComponent(uri)}`);
+      //xhr.send(`url=${encodeURIComponent(uri)}&submit=Create`);
+      //xhr.send(`url=${encodeURIComponent(uri)}`);
+      //xhr.send(`format=xml&url=${encodeURIComponent(uri)}`);
+      // xhr.send(`custom_path=&use_norefs=0&long_url=${encodeURIComponent(uri)}&app=site&version=0.1`);
+      xhr.send();
+    });
+    
+    
+    // xhr.responseType = 'json';
+    // xhr.open("POST", getRefreshTokenUri, true);
+    // xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    // xhr.onreadystatechange = function() {
+      // if (this.readyState === XMLHttpRequest.DONE) {
+        // resolve(this);
+      // }
+    // }
+    // xhr.send(
+      // `code=${authCode}&` +
+      // `client_id=${clientId}&` +
+      // `client_secret=${clientSecret}&` +
+      // `redirect_uri=${REDIRECT_URI}&` +
+      // `grant_type=authorization_code`);
+    
+    // We good. Assume the alias works.
+    console.log(xhr);
+    this.setState({
+      shotSharingLinkGetSuccess: xhr.status === 200,
+      shotSharingLink: tinyUrl,
+    });
   }
   
   render() {
@@ -388,11 +494,17 @@ class ShotsApp extends React.Component {
     } else if (this.state.view === 'single') {
       children.push(
         h(SingleShotView, {
+          // TODO: get the data here, or get it before render?
+          byo: (this.state.view === 'byo_single'),
+          byoAlias: this.state.byoAlias,
+          requestLink: this.requestShotSharingLink.bind(this, this.state.shotData),
           shotData: this.state.shotData,
+          shotSharingLink: this.state.shotSharingLink,
+          shotSharingLinkGetSuccess: this.state.shotSharingLinkGetSuccess,
         }),
       );
     }
-    
+
     return children;
   }
 
@@ -513,12 +625,31 @@ class SingleShotView extends React.Component {
     super(props);
   }
   render() {
-    return div([
+    let children = [];
+    children.push(
       h(SingleShotGraph, {
         shotData: this.props.shotData,
-      }),
-      // TODO: metadata
-    ]);
+      }));
+    
+    if (!this.props.byo) {
+      // Data from shot storage. Allow sharing.
+      /* Turning off sharing until the implementation is solved.
+      children.push(
+        h(ShotSharingWidget, {
+          requestLink: this.props.requestLink,
+          shotSharingLink: this.props.shotSharingLink,
+          shotSharingLinkGetSuccess: this.props.shotSharingLinkGetSuccess,
+        }));
+        */
+    } else {
+      // Bring your own data. Show link instead.
+      children.push(
+        h3('.normal-text', 'Share link: '),
+        h3('.normal-link', this.props.byoAlias),
+      );
+    }
+    // TODO: metadata
+    return children;
   }
 }
 
@@ -635,6 +766,35 @@ class SingleShotGraph extends React.Component {
   }
 }
 
+class ShotSharingWidget extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {requestedShare: false};
+  }
+  
+  render() {
+    let children = [];
+    children.push(
+      button({
+        onClick: () => {
+          this.setState({requestedShare: true});
+          this.props.requestLink();
+        },
+        disabled: this.state.requestedShare,
+      }, 'Share'));
+    
+    if (this.props.shotSharingLinkGetSuccess === true) {
+      children.push(
+        // TODO: make this prettier.
+        h2(this.props.shotSharingLink));
+
+    } else if (this.props.shotSharingLinkGetSuccess === false) {
+      children.push(h2("Could not get a sharing link. Refresh and try again."));
+    }
+    return children;
+  }
+}
+    
 
 
 //ReactDOM.render(h(ShotsApp), rootContainer);

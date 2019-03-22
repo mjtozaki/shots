@@ -271,6 +271,41 @@ class _GapiWrapper {
     return this._makeCacheKeyPrefixForAuth() + `dir,${fileId}`;
   }
   
+  async getFile(fileId) {
+    // TODO: cache.
+    let response = await gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      params: {
+        fields: 'name,parents',
+      },
+    });
+    
+    if (response.error !== undefined) {
+      throw response.error.errors[0].message;
+    }
+
+    // TODO: refactor. this is basically a copy/paste of listFiles.
+    let file = response.result;
+    
+    if (file.parents === undefined || file.parents.length === 0) {
+      return {
+        id: file.id,
+        name: file.name,
+        parent: {path: '/'},
+      };
+      
+    } else {
+      let parents = [file.parents[0]];
+      let parentsById = await this._getDirectoryPaths(parents);
+      return {
+        id: file.id,
+        name: file.name,
+        parent: parentsById.get(file.parents[0]),
+      };
+    }
+  }
+
+  
   async _getDirectoryPaths(requestedParentIds) {
     // Copy to prevent modification of arg.
     var parentIds = new Set(requestedParentIds);
