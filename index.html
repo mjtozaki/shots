@@ -1396,6 +1396,7 @@
             resolve(this);
           }
         };
+        let uri = window.location.href;
         xhr.send(`url=${encodeURIComponent(uri)}`);
       });
       xhrPromise.then(xhr => console.log(xhr));
