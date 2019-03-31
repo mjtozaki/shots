@@ -1,891 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- Styling -->
+  <!-- Styling. -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,900" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="shots.css">
 
-  <!-- External scripts -->
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
-  <!-- Internal scripts -->
-  <script type="text/javascript" src="gapi_wrapper.js"></script>
-  <script type="text/javascript" src="decent.js"></script>
-
-  <!-- Main -->
-  <script type="text/javascript">
-    "use strict";
-
-    /* Main navigation change entrypoints:
-     * 1. Initial page load -> gapi API onload mechanism -> gapi_loaded() -> onHashChange(). 
-     *    For anything that needs to happen for all navigation changes, favor waiting for gapi_loaded()
-     *    to be called to minimize duplication in DOMContentLoaded event. One-off operations can happen
-     *    in the latter.
-     * 2. After initial page load, hash location change -> onHashChange().
-     *    Any important change in page state will result in a hash change with hash arguments holding
-     *    the critical state.
-     *    
-     * All common navigation change handling starts in onHashChange().
-     */
-
-    var VIEW_NAMES_TO_CONTAINER_IDS = {
-      api_form: 'api-form-container',
-      list: 'listing-container',
-      single: 'single-shot-container'
-    };
-    function activateViewContainer(viewNameToActivate) {
-      var containerIdToActivate = VIEW_NAMES_TO_CONTAINER_IDS[viewNameToActivate];
-      document.getElementById(containerIdToActivate).hidden = false;
-      Object.keys(VIEW_NAMES_TO_CONTAINER_IDS)
-        .filter(viewName => viewName !== viewNameToActivate)
-        .forEach(viewName =>
-                 document.getElementById(VIEW_NAMES_TO_CONTAINER_IDS[viewName]).hidden = true);
-    }
-
-    function applyHashArgIfDefined(obj, key) {
-      var value = url('#' + key); 
-      if (value !== undefined) {
-        obj[key] = value;
-      }
-    }
-
-    // TODO: replace with library that converts to query string. Otherwise we are missing escaping logic.
-    function hashQueryMapToLocationString(hashQueryMap) {
-      var newLocation = '#' +
-          [...hashQueryMap.keys()]
-            .map(key => `${key}=${hashQueryMap.get(key)}`)
-            .join('&');
-      return newLocation;
-    }
-
-    // TODO: deprecate
-    function hashToLocationString(hashArgs) {
-      var newLocation = '#' + Object.entries(hashArgs)
-        .map(kvPair => `${kvPair[0]}=${kvPair[1]}`)
-        .join('&');
-      return newLocation;
-    }
-
-    var PERSISTENT_HASH_ARGS = [
-      'api_key',
-      'client_id',
-      'parent_filter_set'
-    ]
-    function getPersistentHashArgs() {
-      var hashArgs = {};
-      PERSISTENT_HASH_ARGS
-        .forEach(arg => applyHashArgIfDefined(hashArgs, arg));
-      return hashArgs;
-    }
-
-    /** Updates nav links based on "persistent" state. */
-    function updateNav(appState) {
-    //       var persistentHashArgs = getPersistentHashArgs();
-      var persistentHashQueryMap = appState.getPersistentHashQueryMap();
-      // List
-      document.getElementById('shots-nav').href =
-        hashQueryMapToLocationString(
-          new Map([...persistentHashQueryMap, ['view', 'list']]));
-      
-      // Absolute links.
-      document.getElementById('last-nav').href =
-        hashQueryMapToLocationString(
-          new Map([...persistentHashQueryMap,
-                   ['redirect', 'absolute_index'],
-                   ['absolute_index', '-1']]));
-      document.getElementById('yesterday-nav').href =
-        hashQueryMapToLocationString(
-          new Map([...persistentHashQueryMap, ['redirect', 'yesterday']]));
-      document.getElementById('first-nav').href =
-        hashQueryMapToLocationString(
-          new Map([...persistentHashQueryMap,
-                   ['redirect', 'absolute_index'],
-                   ['absolute_index', '0']]));
-
-      // Relative links.
-      var minus10Nav = document.getElementById('minus-10-nav');
-      var prevNav = document.getElementById('prev-nav');
-      var nextNav = document.getElementById('next-nav');
-      var shot_file_id = appState.shotFileId;
-      if (shot_file_id !== null) {
-        minus10Nav.hidden = false;
-        minus10Nav.href =
-          hashQueryMapToLocationString(
-            new Map([...persistentHashQueryMap,
-                     ['redirect', 'relative_index'],
-                     ['relative_index', '-10'],
-                     ['shot_file_id', shot_file_id]]));
-        prevNav.hidden = false;
-        prevNav.href =
-          hashQueryMapToLocationString(
-            new Map([...persistentHashQueryMap,
-                     ['redirect', 'relative_index'],
-                     ['relative_index', '-1'],
-                     ['shot_file_id', shot_file_id]]));
-        nextNav.hidden = false;
-        nextNav.href =
-          hashQueryMapToLocationString(
-            new Map([...persistentHashQueryMap,
-                     ['redirect', 'relative_index'],
-                     ['relative_index', '1'],
-                     ['shot_file_id', shot_file_id]]));
-      } else {
-        minus10Nav.hidden = true;
-        prevNav.hidden = true;
-        nextNav.hidden = true;
-      }
-    }
-
-    function maybeShowApiForm(apiKey, clientId) {
-      // TODO: manage showing/hiding sets of controls better.
-      if (apiKey === null || clientId === null) {
-        activateViewContainer('api_form');
-        //apiFormContainer.hidden = false;
-        document.getElementById('api-form-api-key').value = (apiKey === null) ? "" : apiKey;
-        document.getElementById('api-form-client-id').value = (clientId === null) ? "" : clientId;
-        return true;
-      }
-      return false;
-    }
-
-    /** Returns a Set of parent filters. The Set is empty if there's no parent filters. */
-    //     function getParentFilterSet() {
-    //       var parent_filter_set_raw = url('#parent_filter_set');
-    //       if (parent_filter_set_raw === undefined) {
-    //         return new Set();
-    //       }
-    //       var parentFilterSet = new Set(parent_filter_set_raw.split(','));
-    //       return parentFilterSet;
-    //     }
-
-    function dateWithoutTime(date) {
-      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    }
-
-    function redirectLocation(appState) {
-      GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId)
-        .then(
-          function() {
-            console.log('listShotFiles??');
-            return GapiWrapper.listShotFiles(appState.parentFilterSet);
-          },
-          function() {
-            // Throw.
-            console.log('Auth failed apparently.');
-          }
-        )
-        .then(
-          function(shotFileMetadatas) {
-            // Convert redirects from indirect reference to absolute shot index.
-            var realIndex = undefined;
-            switch (appState.redirect) {
-              // TODO: maybe develop into day and day index. or month and month index
-              case 'yesterday':
-                // Go backwards through listing until you find anything before today.
-                var now = new Date(Date.now());
-                var todayThreshold = dateWithoutTime(now).getTime();
-                for (let i = shotFileMetadatas.length - 1; i >= 0; --i) {
-                  var metadata = shotFileMetadatas[i];
-                  if (metadata.datetime.getTime() < todayThreshold) {
-                    // Last shot that didn't happen today.
-                    realIndex = i;
-                    break;
-                  }
-                }
-                // Let realIndex = undefined fall through.
-                break;
-              case 'absolute_index': // Lack of better name
-                // 0: first
-                // n-1: last
-                // inf: last
-                // -1: last
-                // -n: first
-                // -inf: first
-                var n = shotFileMetadatas.length;
-                var absoluteIndex = appState.absoluteIndex;
-                if (absoluteIndex < 0) {
-                  realIndex = n + absoluteIndex;
-                  if (realIndex < 0) {
-                    realIndex = 0;
-                  }
-                } else if (absoluteIndex >= n) {
-                  realIndex = n-1;
-                } else {
-                  realIndex = absoluteIndex;
-                }
-                if (realIndex < 0) {
-                  // There's zero shots for some reason.
-                  realIndex = undefined;
-                }
-                break;
-                
-              case 'relative_index':
-                var n = shotFileMetadatas.length;
-                var shotFileId = appState.shotFileId;
-                if (shotFileId === undefined) {
-                  break; // Default to listing.
-                }
-                var startingIndex =
-                    shotFileMetadatas.findIndex(metadata => metadata.fileId === shotFileId);
-                if (startingIndex === -1) {
-                  break; // Default to listing.
-                }
-                var relativeIndex = appState.relativeIndex;
-                var absoluteIndex = startingIndex + relativeIndex;
-                if (absoluteIndex < 0) {
-                  realIndex = n + absoluteIndex;
-                  if (realIndex < 0) {
-                    realIndex = 0;
-                  }
-                } else if (absoluteIndex >= n) {
-                  realIndex = n-1;
-                } else {
-                  realIndex = absoluteIndex;
-                }
-                if (realIndex < 0) {
-                  // There's zero shots for some reason.
-                  realIndex = undefined;
-                }
-                break;
-                
-              default:
-                break; // Default to listing.
-            }
-            var hashQueryMap = appState.getPersistentHashQueryMap();
-            if (realIndex === undefined) {
-              // No shots. Let's just do a listing instead.
-              hashQueryMap.set('view', 'list');
-            } else {
-              // Translate to fileId.
-              var fileId = shotFileMetadatas[realIndex].fileId;
-              hashQueryMap.set('view', 'single');
-              hashQueryMap.set('shot_file_id', fileId);
-            }
-            replaceLocationWithHashQueryMap(hashQueryMap);
-            // Queue hash change.
-            Promise.resolve(true).then(() => onHashChange());
-          });
-    }
-
-    // From https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API#Testing_for_availability
-    function storageAvailable(type) {
-      try {
-        var storage = window[type],
-            x = '__storage_test__';
-        storage.setItem(x, x);
-        storage.removeItem(x);
-        return true;
-      }
-      catch(e) {
-        return e instanceof DOMException && (
-          // everything except Firefox
-          e.code === 22 ||
-          // Firefox
-          e.code === 1014 ||
-          // test name field too, because code might not be present
-          // everything except Firefox
-          e.name === 'QuotaExceededError' ||
-          // Firefox
-          e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
-          // acknowledge QuotaExceededError only if there's something already stored
-          storage.length !== 0;
-      }
-    }
-
-    // All app inputs declared here.
-    // TODO: organize better. this will do for ensuring we don't forget about parameters.
-    class ShotsAppState {
-      constructor() {
-        this.apiKey = null;
-        this.clientId = null;
-        this.parentFilterSet = new Set();
-        this.view = null;
-        this.shotFileId = null;
-        this.redirect = null;
-        this.absoluteIndex = null;
-        this.relativeIndex = null;
-        this.shotIndexFileId = null;
-        
-        this.localStorageUsed = false;
-      }
-      
-      /** Returns Map with entries that must be persisted in the location hash query. */
-      getPersistentHashQueryMap() {
-        var hashQueryMap = new Map();
-        if (!this.localStorageUsed) {
-          if (this.apiKey !== null) {
-            hashQueryMap.set('api_key', this.apiKey);
-          }
-          if (this.clientId !== null) {
-            hashQueryMap.set('client_id', this.clientId);
-          }
-          if (this.shotIndexFileId !== null) {
-            hashQueryMap.set('shot_index_file_id', this.shotIndexFileId);
-          }
-        }
-        if (this.parentFilterSet.size > 0) {
-          hashQueryMap.set(
-            'parent_filter_set',
-            [...this.parentFilterSet].join(','));
-        }
-        return hashQueryMap;
-      }
-    }
-
-    // TODO: move into ShotsAppState?
-    /** Returns true if auth absorbed into local storage. False otherwise. */
-    function absorbIntoLocalStorage(apiKey, clientId, shotIndexFileId, hashQuery) {
-      if (!storageAvailable('localStorage')) {
-        return false;
-      }
-      if (apiKey !== null) {
-        window.localStorage.setItem('api_key', apiKey);
-      }
-      if (clientId !== null) {
-        window.localStorage.setItem('client_id', clientId);
-      }
-      if (shotIndexFileId !== null) {
-        window.localStorage.setItem('shot_index_file_id', shotIndexFileId);
-      }
-      // Strip from hashQuery.
-      var strippedHashQueryMap = Object.keys(hashQuery)
-        .filter(key => key !== 'api_key' && key !== 'client_id' && key !== 'shot_index_file_id')
-        .reduce(
-          (map, key) => {
-            map.set(key, hashQuery[key]);
-            return map;
-          },
-          new Map());
-      // Replace state.
-      replaceLocationWithHashQueryMap(strippedHashQueryMap);
-      return true;
-    }
-
-    // TODO: better name
-    function getInputAndState() {
-      var appState = new ShotsAppState();
-      var apiKey = null;
-      var clientId = null;
-      var shotIndexFileId = null;
-      // Auth is special: may come from local storage.
-      if (storageAvailable('localStorage')) {
-        apiKey = window.localStorage.getItem('api_key');
-        clientId = window.localStorage.getItem('client_id');
-        shotIndexFileId = window.localStorage.getItem('shot_index_file_id');
-      }
-      var hashQuery = url('#');
-      if (hashQuery === undefined) {
-        hashQuery = {};
-      }
-      var hashQueryHasLocallyStorableAttrs = false;
-      if (hashQuery['api_key'] !== undefined) {
-        hashQueryHasLocallyStorableAttrs = true;
-        apiKey = hashQuery['api_key'];
-      }
-      if (hashQuery['client_id'] !== undefined) {
-        hashQueryHasLocallyStorableAttrs = true;
-        clientId = hashQuery['client_id'];
-      }
-      if (hashQuery['shot_index_file_id'] !== undefined) {
-        hashQueryHasLocallyStorableAttrs = true;
-        shotIndexFileId = hashQuery['shot_index_file_id'];
-      }
-      if (apiKey !== null) {
-        appState.apiKey = apiKey;
-      }
-      if (clientId !== null) {
-        appState.clientId = clientId;
-      }
-      if (shotIndexFileId !== null) {
-        appState.shotIndexFileId = shotIndexFileId;
-      }
-      // Absorb auth and others into local storage if possible.
-      if (hashQueryHasLocallyStorableAttrs &&
-          absorbIntoLocalStorage(apiKey, clientId, shotIndexFileId, hashQuery)) {
-        appState.localStorageUsed = true;
-      }
-      
-      // Rest of the input.
-      if (hashQuery['parent_filter_set'] !== undefined) {
-        appState.parentFilterSet =
-          new Set(hashQuery['parent_filter_set'].split(','));
-      }
-      if (hashQuery['view'] !== undefined) {
-        appState.view = hashQuery['view'];
-      }
-      // shot_file_id
-      if (hashQuery['shot_file_id'] !== undefined) {
-        appState.shotFileId = hashQuery['shot_file_id'];
-      }
-      // redirect
-      if (hashQuery['redirect'] !== undefined) {
-        appState.redirect = hashQuery['redirect'];
-      }
-      // absolute_index
-      if (hashQuery['absolute_index'] !== undefined) {
-        var absoluteIndex = Number(hashQuery['absolute_index']);
-        if (Number.isInteger(absoluteIndex)) {
-          appState.absoluteIndex = absoluteIndex;
-        }
-      }
-      // relative_index
-      if (hashQuery['relative_index'] !== undefined) {
-        var relativeIndex = Number(hashQuery['relative_index']);
-        if (Number.isInteger(relativeIndex)) {
-          appState.relativeIndex = relativeIndex;
-        }
-      }
-      return appState;
-    }
-
-    /* missing api_key or client_id beats everything else
-     * redirect beats view
-     */
-
-    // The main feeder for location changes.
-    function onHashChange() {
-      console.log(`hash=${window.location.hash}`);
-      
-      // All inputs must be clocked in at this time. Do not retrieve independently.
-      var appState = getInputAndState();
-      
-      updateNav(appState);
-      
-      // Default view mode.
-      if (appState.view === null) {
-        appState.view = 'list';
-      }
-      
-      if (maybeShowApiForm(appState.apiKey, appState.clientId)) {
-        return;
-      }
-      
-      // TODO: further sanitize view
-      activateViewContainer(appState.view);
-      
-      // Redirects
-      if (appState.redirect !== null) {
-        // TDOO: consider caching implications. always refresh, or reuse in-page cache.
-        redirectLocation(appState);
-        return; // Redirection effectively causes a new hash change event to be triggered.
-      }
-
-      // Async acquiring authorization.
-      var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId);
-      
-      switch (appState.view) {
-        case 'list':
-          // Can arrange DOM immediately.
-          // Reset state of list container
-          var listingContainer = document.getElementById('listing-container');
-          while (listingContainer.firstChild) {
-            listingContainer.removeChild(listingContainer.firstChild);
-          }
-          
-          // Async.
-          whenAuthed.then(
-            function() {
-              console.log('listShotFiles??');
-              return GapiWrapper.listShotFiles(appState.parentFilterSet);
-            },
-            function() {
-              // Throw.
-              console.log('Auth failed apparently.');
-            }
-          )
-          .then(
-            function(shotFileMetadatas) {
-              // File listing
-              console.log(shotFileMetadatas);
-              var shotFileIdsToListingLabels = mapShotFileIdsToListingLabels(shotFileMetadatas);
-              shotFileMetadatas.reverse();
-              shotFileMetadatas.forEach(
-                (metadata) => {
-                  // Append to listing container
-                  var entry = document.createElement('div');
-                  var shotLinkHashQueryMap = appState.getPersistentHashQueryMap(); //getPersistentHashArgs();
-                  shotLinkHashQueryMap.set('view', 'single');
-                  shotLinkHashQueryMap.set('shot_file_id', metadata.fileId);
-                  var shotLink = hashQueryMapToLocationString(shotLinkHashQueryMap); //hashToLocationString(shotLinkHash);
-                  var listingLabel = shotFileIdsToListingLabels.get(metadata.fileId);
-                  entry.innerHTML = '<a href="' + shotLink + '"><h3>' + listingLabel.timeLabel + '</h3><h4>' + listingLabel.fileSystemLabel + '</h4></a>';
-                  entry.className = 'listing-entry';
-                  listingContainer.appendChild(entry);
-                });
-            },
-            function() {
-              // Throw
-              console.log('listShotFiles failed apparently.');
-            }
-          );
-          break;
-
-        case 'single':
-          var shotFileId = appState.shotFileId;
-          
-          // Can arrange DOM immediately.
-          if (shotFileId === null) {
-            // Throw.
-            console.log('No shot file to show.');
-            break;
-          }
-          
-          // Async
-          whenAuthed.then(
-            function() {
-              return Promise.all([GapiWrapper.getFileContents(shotFileId), GapiWrapper.getFileIndexMetadata(shotFileId, appState.shotIndexFileId)]);
-            }
-          )
-          .then(
-            ([fileContents, indexMetadata]) => {
-              var shot = shotFromShotFileContents(fileContents);
-              shot.renderText(document.getElementById('file_contents'));
-              var plot = document.getElementById('shot_plot');
-              shot.renderPlot(plot);
-              
-              var annotationsContainer = document.getElementById('shot_annotations_container');
-              annotationsContainer.hidden = false;
-              
-              document.getElementById('shot_annotations_dose_mass').value = (indexMetadata.doseMass !== undefined) ? indexMetadata.doseMass : "";
-              document.getElementById('shot_annotations_beverage_mass').value = (indexMetadata.beverageMass !== undefined) ? indexMetadata.beverageMass : "";
-              document.getElementById('shot_annotations_grind').value = (indexMetadata.grind !== undefined) ? indexMetadata.grind : "";
-              document.getElementById('shot_annotations_description').value = (indexMetadata.description !== undefined) ? indexMetadata.description : "";
-              document.getElementById('shot_annotations_row_number').value = (indexMetadata.rowNumber !== undefined) ? indexMetadata.rowNumber : "";
-              document.getElementById('shot_annotations_file_id').value = shotFileId;
-              document.getElementById('shot_annotations_unsaved_warning').hidden = true;
-              document.getElementById('shot_annotations_last_error').hidden = true;
-            }
-          );
-          break;
-          
-        default:
-          // Throw.
-      }
-    }
-    window.addEventListener('hashchange', onHashChange, false);
-
-    /** Returns Map of locale date (clock time) to ShotFileMetadata (preserves order). */
-    function groupShotsByDate(metadatas) {
-      return metadatas.reduce( // Groupby date.
-        (groupings, metadata) => {
-          // valueOf() for correct key equality mechanics.
-          var dateEpoch = dateWithoutTime(metadata.datetime).valueOf();
-          if (!groupings.has(dateEpoch)) {
-            groupings.set(dateEpoch, []);
-          }
-          groupings.get(dateEpoch).push(metadata);
-          return groupings;
-        },
-        new Map());
-    }
-      
-    // TODO: breakdown:
-    //       make struct with information important to display (e.g. # shot of day), but render UI later with a renderer class.
-    /**
-     * timeLabel: label indicating time-oriented information about shot.
-     * fileSystemLabel: label indicating filesystem-oriented information about shot. 
-     */
-    class ShotListingLabel {
-      constructor(timeLabel, fileSystemLabel) {
-        this.timeLabel = timeLabel;
-        this.fileSystemLabel = fileSystemLabel;
-      }
-    }
-      
-    /** shotFileMetadatas must be ordered in ascending datetime. */
-    function mapShotFileIdsToListingLabels(shotFileMetadatas) {
-      var mapping = new Map();
-      groupShotsByDate(shotFileMetadatas)
-        .forEach((grouping, epochTime) => {
-          var date = new Date(epochTime);
-          var timeLabelPrefix = `${date.toDateString()}`;
-          for (let i of grouping.keys()) {
-            var metadata = grouping[i];
-            // e.g. Wed Jul 28 1993 #3 (23:15:30 GMT+0200 (CEST))
-            var timeLabel = timeLabelPrefix + ` #${i+1} (${metadata.datetime.toTimeString()})`;
-            // e.g. path/to/shotfile.shot
-            var fileSystemLabel =
-                metadata.parents
-                  .map(parent => parent.name)
-                  .join('/')
-                + `/${metadata.name}`;
-            mapping.set(metadata.fileId, new ShotListingLabel(timeLabel, fileSystemLabel));
-          }
-        });
-      return mapping;
-    }
-
-    function replaceLocationWithHashQueryMap(hashQueryMap) {
-      window.history.replaceState({}, '', hashQueryMapToLocationString(hashQueryMap));
-    }
-    // Deprecate in favor of Map-based solution.
-    function replaceLocationWithHash(params) {
-      window.history.replaceState({}, '', hashToLocationString(params));
-    }
-    // Setup other static stuff.
-    function gotoHash(params) {
-      window.location = hashToLocationString(params);
-    }
-    function gotoSingleShot(fileId) {
-      var api_key = url('#api_key');
-      var client_id = url('#client_id');
-      gotoHash({
-        api_key: api_key,
-        client_id: client_id,
-        view: 'single',
-        shot_file_id: fileId,
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded',function() {
-      // Static buttons
-      document.getElementById('options-nav').onclick = function() {
-        var optionsContainer = document.getElementById('options-container');
-        optionsContainer.hidden = !optionsContainer.hidden;
-        if (!optionsContainer.hidden) {
-          var shotIndexSelect = document.getElementById('shotindex-select');
-          // Reset state of select.
-          while (shotIndexSelect.firstChild) {
-            shotIndexSelect.removeChild(shotIndexSelect.firstChild);
-          }
-          var defaultOpt = document.createElement('option');
-          defaultOpt.value = null;
-          defaultOpt.innerHTML = '-- .shotindex files --';
-          shotIndexSelect.appendChild(defaultOpt);
-          shotIndexSelect.selectedIndex = 0;
-          
-          var appState = getInputAndState();
-          var whenAuthed = GapiWrapper.ensureApiKeyAndClientIdAuthed(appState.apiKey, appState.clientId);
-          whenAuthed.then(
-            function() {
-              return GapiWrapper.listShotIndexFiles();
-            }
-          )
-          .then(
-            function(shotIndexFiles) {
-              var i = 1;
-              shotIndexFiles.forEach(shotIndexFile => {
-                var parents = shotIndexFile.parents.join('/');
-              
-                var opt = document.createElement('option');
-                opt.value = shotIndexFile.fileId;
-                opt.innerHTML = `${parents}/${shotIndexFile.name}`
-                shotIndexSelect.appendChild(opt);
-                if (opt.value === appState.shotIndexFileId) {
-                  shotIndexSelect.selectedIndex = i;
-                }
-                ++i;
-              });
-            });
-        }
-      };
-
-      document.getElementById('shotindex-switch-button').onclick = function() {
-        // Get current fileId.
-        var shotIndexFileId = document.getElementById('shotindex-select').value;
-        if (shotIndexFileId === '') {
-          // TODO: remove shot index.
-          return;
-        } 
-
-        // Load new page.
-        var hashArgs = url('#');
-        if (hashArgs === undefined) {
-          hashArgs = {};
-        }
-        hashArgs['shot_index_file_id'] = shotIndexFileId;
-        gotoHash(hashArgs);
-      };
-    
-    
-      // Setup api form handlers.
-      document.getElementById('api-form-set').onclick = function() {
-        var api_key = document.getElementById('api-form-api-key').value;
-        var client_id = document.getElementById('api-form-client-id').value;
-        console.log(`api_key ${api_key} client_id ${client_id}`);
-        var warning = document.getElementById('api-form-warning');
-        if (api_key === '' || client_id === '') {
-          warning.hidden = false;
-        } else {
-          warning.hidden = true;
-          // TODO: move to new system.
-          var hashArgs = url('#');
-          if (hashArgs === undefined) {
-            hashArgs = {};
-          }
-          hashArgs['api_key'] = api_key;
-          hashArgs['client_id'] = client_id;
-          gotoHash(hashArgs);
-        }
-        return false;
-      };
-      
-      document.getElementById('shot_annotations_update').onclick = function() {
-        var doseMass = document.getElementById('shot_annotations_dose_mass').value;
-        var beverageMass = document.getElementById('shot_annotations_beverage_mass').value;
-        var grind = document.getElementById('shot_annotations_grind').value;
-        var description = document.getElementById('shot_annotations_description').value;
-        var rowNumber = document.getElementById('shot_annotations_row_number').value;
-        var fileId = document.getElementById('shot_annotations_file_id').value;
-        var lastUpdated = new Date(Date.now()).toISOString();
-        
-        var appState = getInputAndState();
-        
-        document.getElementById('shot_annotations_last_error').hidden = true;
-            
-        GapiWrapper.updateShotAnnotations(fileId, appState.shotIndexFileId, {
-          lastUpdated: lastUpdated,
-          doseMass: doseMass,
-          beverageMass: beverageMass,
-          grind: grind,
-          description: description,
-          //coffeeSourceId: coffeeSourceId,
-          rowNumber: rowNumber,
-        })
-          .then(() => {
-            document.getElementById('shot_annotations_unsaved_warning').hidden = true;
-          })
-          .catch((reason) => {
-            var errorLabel = document.getElementById('shot_annotations_last_error');
-            errorLabel.hidden = false;
-            errorLabel.innerHTML = "Update failed: " + reason;
-            console.log(reason);
-          });
-        return false;
-      };
-
-      // Trigger unsaved warning on annotations change.
-      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
-      document.getElementById('shot_annotations_beverage_mass').oninput = setAnnotationsUnsaved;
-      document.getElementById('shot_annotations_grind').oninput = setAnnotationsUnsaved;
-      document.getElementById('shot_annotations_description').oninput = setAnnotationsUnsaved;
-      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
-      document.getElementById('shot_annotations_dose_mass').oninput = setAnnotationsUnsaved;
-    }, false);
-    
-    function setAnnotationsUnsaved() {
-      document.getElementById('shot_annotations_unsaved_warning').hidden = false;
-    }
-
-    function gapi_loaded() {
-      const rootContainer = document.querySelector('#root');
-      var shotsApp = ReactDOM.render(h(ShotsApp), rootContainer);
-      shotsApp.route();
-    }
-  </script>
-
-  <!-- External script that needs to load last -->
-  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
-
 </head>
 <body>
-
-
   <div id="root" />
-
-  <!-- Menu Bar -->
-  <div style="display:flex">
-    <a id="shots-nav"><span class="odd-nav">shots</span></a>
-    <a id="last-nav"><span class="even-nav">last</span></a>
-    <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
-    <a id="first-nav"><span class="even-nav">first</span></a>
-    <a id="minus-10-nav"><span class="odd-nav">-10</span></a>
-    <!-- <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
-    <a id="minus-100-nav"><span class="even-nav">-100</span></a> -->
-    <a id="prev-nav"><span class="even-nav">-1</span></a>
-    <a id="next-nav"><span class="odd-nav">+1</span></a>
-    <a id="options-nav" style="margin-left:auto"><span class="options-nav">&#183;&#183;&#183;</span></a>
-  </div>
-  <br>
   
-  <!-- Options Bar -->
-  <div id="options-container" hidden>
-    <div style="display:flex">
-      <span class="odd-option">
-        <select id="shotindex-select"></select>
-        <button id="shotindex-switch-button" type="button">Switch</button>
-      </span>
-      <span class="even-option">goodbye</span>
-    </div>
-  <br>
-  </div>
-
-  <div id="api-form-container" hidden>
-    <form method="get">
-      <div class="form">
-        <label class="form-text" for="api-form-api-key">api key</label>
-        <input id="api-form-api-key" type="text" name="api_key">
-      </div>
-      <div class="form">
-        <label class="form-text" for="api-form-client-id">client id</label>
-        <input id="api-form-client-id" type="text" name="client_id">
-      </div>
-      <input class="form-text" id="api-form-set" type="submit" value="Set">
-      <div id="api-form-warning" hidden>api key and client id must be populated to set.</div>
-    </form>
-  </div>
-  <!-- <button onclick="appendToHash()">Append to hash</button> -->
+  <!-- External libraries. -->
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/js-url/2.5.3/url.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-1.45.2.min.js"></script>
   
-  <div id="listing-container" hidden>
-  </div>
+  <!-- Better date formatting. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+  <!-- Compression. https://github.com/nodeca/pako/blob/master/examples/browser.html -->
+  <script src="https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js"></script>
 
-  <div id="single-shot-container" hidden>
-    <div class="shot_plot" id="shot_plot"></div>
-    <div id="shot_annotations_container" hidden>
-      <form>
-        <!--
-        <div class="form">
-          <label class="form-text" for="shot_annotations_dose_mass">Dose (g)</label>
-          <input id="shot_annotations_dose_mass" type="text" name="dose_mass">
-        </div>
-        <div class="form">
-          <label class="form-text" for="shot_annotations_beverage_mass">Beverage (g)</label>
-          <input id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
-        </div>
-        <div class="form">
-          <label class="form-text" for="shot_annotations_grind">Grind Setting</label>
-          <input id="shot_annotations_grind" type="text" name="grind">
-        </div>
-        <div class="form">
-          <label class="form-text" for="shot_annotations_description">Description</label>
-          <textarea id="shot_annotations_description" name="description"></textarea>
-        </div>
-        -->
-        
-        <div class="small-annotation">
-          <label class="new-form-label" for="shot_annotations_dose_mass">Dose (g)</label>
-          <input class="new-form-input" id="shot_annotations_dose_mass" type="text" name="dose_mass">
-        </div>
-        <div class="small-annotation">
-          <label class="new-form-label" for="shot_annotations_beverage_mass">Beverage (g)</label>
-          <input class="new-form-input" id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
-        </div>
-        <div class="small-annotation">
-          <label class="new-form-label" for="shot_annotations_grind">Grind Setting</label>
-          <input class="new-form-input" id="shot_annotations_grind" type="text" name="grind">
-        </div>
-        <div class="big-annotation">
-          <label class="new-form-label" for="shot_annotations_description">Description</label>
-          <textarea class="big-input" id="shot_annotations_description" name="description"></textarea>
-        </div>
-        
-        <input id="shot_annotations_row_number" type="hidden" name="row_number">
-        <input id="shot_annotations_file_id" type="hidden" name="file_id">
-        
-        <input class="form-text" id="shot_annotations_update" type="submit" value="Update">
-        <label class="form-warning-text" id="shot_annotations_unsaved_warning" hidden>Changes are unsaved.</label>
-        <label class="form-warning-text" id="shot_annotations_last_error" hidden></label>
-      </form>
-    </div>
-    <div class="shot_text" id="file_contents" hidden></div>
-  </div>
-  
-  <!-- Load React. -->
-  <!-- Note: when deploying, replace "development.js" with "production.min.js". -->
+  <!-- React and related. -->
   <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-router@5.0.0/umd/react-router.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@5.0.0/umd/react-router-dom.min.js"></script>
   <script src="https://unpkg.com/react-hyperscript-helpers@2.0.0/umd/react-hyperscript-helpers.min.js"></script>
-  <script src="shots_app.js"></script>
+  <script src="https://unpkg.com/react-plotly.js@2.2.0/dist/create-plotly-component.min.js"></script> <!-- 2.3.0 is broken. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.1/redux.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-redux/6.0.1/react-redux.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux-thunk/2.3.0/redux-thunk.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux-form/8.1.0/redux-form.min.js"></script>
+  <script src="https://unpkg.com/redux-actions@2.6.5/dist/redux-actions.min.js"></script>
+  
+  <!-- External things imported into global. -->
+  <script src="imports.js" type="text/javascript"></script>
+
+  <!-- Internal libraries. -->
+  <script src="decent.js" type="text/javascript"></script>
+  <script src="gapi_wrapper.js" type="text/javascript"></script>
+  <script src="gapi_shot_storage.js" type="text/javascript"></script>
+  <script src="shot_serialization.js" type="text/javascript"></script>
+  
+  <!-- Redux standard fare. -->
+  <script src="actions.js" type="text/javascript"></script>
+  <script src="reducers.js" type="text/javascript"></script>
+
+  <!-- React/redux component and containers. -->
+  <script src="redirects.js" type="text/javascript"></script>
+  <script src="auth_settings.js" type="text/javascript"></script>
+  <script src="menu.js" type="text/javascript"></script>
+  <script src="shot_listing.js" type="text/javascript"></script>
+  <script src="single_shot_view.js" type="text/javascript"></script>
+  <script src="sharing_widget.js" type="text/javascript"></script>
+  <script src="shots_app.js" type="text/javascript"></script>
+
+  <!-- Boot React app from gapi client onload. -->
+  <script type="text/javascript">
+    (function(ns = window) {
+      const getPersistentAuth = () => {
+        try {
+          const clientId = window.localStorage.getItem('client_id');
+          const clientSecret = window.localStorage.getItem('client_secret');
+          const refreshToken = window.localStorage.getItem('refresh_token');
+          
+          return {
+            clientId: (clientId !== null) ? clientId : undefined,
+            clientSecret: (clientSecret !== null) ? clientSecret : undefined,
+            refreshToken: (refreshToken !== null) ? refreshToken : undefined,
+          };
+        } catch (e) {
+          return {};
+        }
+      };
+      function gapi_loaded() {
+        const rootContainer = document.querySelector('#root');
+        
+         // All the APIs we need.
+        const apis = {
+          shotSerializer: new ShotSerializer(),
+          shotStorage: new GapiShotStorage(GapiWrapper, new ShotCodec()),
+        };
+        
+        const initialState = {
+          auth: {...getPersistentAuth()},
+        };
+        
+        const store = createStore(
+          rootReducer,
+          initialState,
+          applyMiddleware(
+            thunk.withExtraArgument(apis)
+          ));
+        
+        ReactDOM.render(
+          h(Provider, {store: store}, [
+            h(Router, [
+              h(Route, {path: '/', component: AuthSyncedShotsApp}),
+            ]),
+          ]),
+          rootContainer);
+      }
+      ns.gapi_loaded = gapi_loaded;
+    })();
+  </script>
+
+  <!-- Gapi. -->
+  <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=gapi_loaded"></script>
 </body>
 </html>
