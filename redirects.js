@@ -2,6 +2,7 @@
 
 (function(ns = window) {
 
+// Props.
 // lazy. Using same map functions for all redirect containers.
 const mapStateToProps = state => ({
   redirect: state.redirect,

@@ -2,22 +2,12 @@
 
 (function(ns = window) {
 
+// Component.
 class ShotSharingWidget extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {requestedShare: false};
-  }
-  
   render() {
     let children = [];
     children.push(
-      button({
-        onClick: this.props.goToSharingLinkResult /*() => {
-          this.setState({requestedShare: true});
-          this.props.requestLink();
-        },
-        disabled: this.state.requestedShare,*/
-      }, 'Get sharing link from tinyurl'));
+      button({onClick: this.props.goToSharingLinkResult}, 'Get sharing link from tinyurl'));
     
     // Shelved until we can do an asynchronous fetch of the sharing link.
     // if (this.props.shotSharingLinkGetSuccess === true) {
@@ -32,14 +22,15 @@ class ShotSharingWidget extends React.Component {
   }
 }
 
+// Props.
 const mapStateToProps = state => ({
   shot: state.shot,
 });
-
 const mapDispatchToProps = (dispatch, ownProps) => ({
   goToSharingLinkResult: () => dispatch(goToSharingLinkResult()),
 });
 
+// Exports.
 ns.ShotSharingWidget = connect(
   mapStateToProps,
   mapDispatchToProps,

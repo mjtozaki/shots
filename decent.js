@@ -49,6 +49,16 @@ class ShotCodec {
   }
 }
 
+class ShotSyntaxError extends Error {
+  constructor(...params) {
+    super(...params);
+    
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ShotSyntaxError);
+    }
+  }
+}
+
 /** Helps with data encoded in Tcl. */
 class TclCodec {
   /** 
@@ -159,13 +169,13 @@ class TclTokenizer {
     this._eatWhitespace();
     
     if (this.pos >= this.str.length) {
-      return {tokenType: TclTokenizer.TOKEN_TYPE_EOF}; //new Token(TclTokenizer.TOKEN_TYPE_EOF, undefined);
+      return {tokenType: TclTokenizer.TOKEN_TYPE_EOF};
     }
     var ch = this.str.charAt(this.pos);
     if (TclTokenizer.isWordChar(ch)) {
-      return {tokenType: TclTokenizer.TOKEN_TYPE_WORD, value: this._extractWord()}; //new Token(TclTokenizer.TOKEN_TYPE_WORD, this._extractWord());
+      return {tokenType: TclTokenizer.TOKEN_TYPE_WORD, value: this._extractWord()};
     } else if (ch === '{') {
-      return {tokenType: TclTokenizer.TOKEN_TYPE_WORD, value: this._extractBracedWord()}; //new Token(TclTokenizer.TOKEN_TYPE_WORD, this._extractBracedWord());
+      return {tokenType: TclTokenizer.TOKEN_TYPE_WORD, value: this._extractBracedWord()};
     } else {
       throw new TclError("Unexpected token '" + ch + "' at pos " + this.pos + ".");
     }
@@ -174,211 +184,3 @@ class TclTokenizer {
 
 TclTokenizer.TOKEN_TYPE_EOF = 1;
 TclTokenizer.TOKEN_TYPE_WORD = 2;
-
-
-
-
-
-
-
-
-
-/* Experimenting with builders in js.
- * Based upon:
- *  -http://ryanogles.by/an-exploration-of-javascript-builders/
- *  -https://medium.com/@axelhadfeg/builder-pattern-using-javascript-and-es6-ec1539182e24
- */
-class BaseBuilder {
-  init() {  
-    Object.keys(this).forEach((key) => {
-      const setterName = `set${key.substring(0,1).toUpperCase()}${key.substring(1)}`;
-      this[setterName] = (value) => {
-        this[key] = value;
-        return this;
-      };
-    });
-  }
-
-  build() {
-    const fields = Object.keys(this).filter((key) => (
-      typeof this[key] !== 'function'
-    ));
-            
-    var properties =  fields.reduce((returnValue, key) => {
-      return {
-        ...returnValue,
-        [key]: {
-          value: this[key],
-          writable: false
-        }
-      };
-    }, {});
-    
-    var outputObject = {};
-    Object.defineProperties(outputObject, properties);
-    
-    this.addMemberFunctions(outputObject);
-    
-    return outputObject;
-    
-//         return keysNoWithers.reduce((returnValue, key) => {
-//           return {
-//             ...returnValue,
-//             [key]: this[key]
-//           };
-//         }, {});
-  }
-}
-
-class ShotSyntaxError extends Error {
-  constructor(...params) {
-    super(...params);
-    
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, ShotSyntaxError);
-    }
-  }
-}
-
-// Remove rendering capability from this data structure.
-class ShotBuilder extends BaseBuilder {
-  constructor() {
-    super();
-    
-    this.timestamp = new Date(0);
-    this.elapsed = [];
-    this.pressure = [];
-    this.flow = [];
-    this.weight = [];
-    this.flowWeight = [];
-    this.temperatureBasket = [];
-    this.temperatureMix = [];
-    this.temperatureTarget = [];
-    this.author = "";
-
-    super.init();
-  }
-  addMemberFunctions(obj) {
-    obj.renderText = function(div) {
-      var BR = "<br>";
-      var html = 
-        "timestamp: " + this.timestamp.toString() + BR
-        + "elapsed: " + this.elapsed + BR
-        + "pressure: " + this.pressure + BR
-        + "flow: " + this.flow + BR
-        + "weight: " + this.weight + BR
-        + "flowWeight: " + this.flowWeight + BR
-        + "temperatureBasket: " + this.temperatureBasket + BR
-        + "temperatureMix: " + this.temperatureMix + BR
-        + "temperatureTarget" + this.temperatureTarget + BR
-        + "author: " + this.author + BR;
-      div.innerHTML = html;
-    }
-    
-    // TODO: Move this stuff to polymorphic renderers.
-    
-    obj.renderPlot = function(plot) {
-      var pressure = {
-        x: this.elapsed,
-        y: this.pressure,
-        mode: 'lines',
-        name: 'Pressure',
-        line: {
-          color: 'green'
-        }
-      };
-      var flow = {
-        x: this.elapsed,
-        y: this.flow,
-        mode: 'lines',
-        name: 'Flow',
-        line: {
-          color: 'blue'
-        },
-        yaxis: 'y2'
-      };
-      var temperatureBasket = {
-        x: this.elapsed,
-        y: this.temperatureBasket,
-        mode: 'lines',
-        name: 'Basket Temperature',
-        line: {
-          color: 'red'
-        },
-        yaxis: 'y3'
-      };
-
-      // Pressure and flow ranges match DE app defaults.
-      var pressureRange = [0, 12];
-      var flowRange = [0, 6];
-      
-      // Align temperature domain such that temperature target is centered.
-      var center =
-          this.temperatureTarget.reduce(
-            (accumulator, currentValue) => accumulator + currentValue)
-          / this.temperatureTarget.length;
-      var maxDifference = [...Array(this.elapsed.length).keys()]
-          .map(
-            (index) => Math.max(Math.abs(this.temperatureTarget[index] - center), Math.abs(this.temperatureBasket[index] - center)))
-          .reduce((accumulator, currentValue) => Math.max(accumulator, currentValue), 0);
-      var temperatureRange = [center - maxDifference, center + maxDifference];
-      var temperatureTarget = {
-        x: this.elapsed,
-        y: this.temperatureTarget,
-        mode: 'lines',
-        name: 'Target Basket Temperature',
-        line: {
-          color: 'red',
-          dash: 'dash'
-        },
-        yaxis: 'y3'
-      };
-        
-      var data = [pressure, flow, temperatureBasket, temperatureTarget];
-      var layout = {
-        titlefont: {
-          family: 'Roboto',
-        },
-        title: `Shot @ ${this.timestamp}`,
-//             showlegend: false,
-        xaxis: {
-          title: 'Elapsed (s)',
-          domain: [0, 0.9],
-        },
-        yaxis: {
-          title: 'Pressure (bar)',
-          titlefont: {color: 'green'},
-          tickfont: {color: 'green'},
-          side: 'left',
-          autorange: false,
-          range: pressureRange,
-        },
-        yaxis2: {
-          title: 'Flow (mL/s)',
-          titlefont: {color: 'blue'},
-          tickfont: {color: 'blue'},
-          anchor: 'x',
-          overlaying: 'y',
-          side: 'right',
-          autorange: false,
-          range: flowRange,
-        },
-        yaxis3: {
-          title: 'Basket Temperature (C)',
-          titlefont: {color: 'red'},
-          tickfont: {color: 'red'},
-          anchor: 'free',
-          overlaying: 'y',
-          side: 'right',
-          position: 1,
-          autorange: false,
-          range: temperatureRange
-        },
-      };
-      // React overwrites any existing plot.
-      Plotly.react(plot, data, layout);
-    }
-  }
-}
-
-

@@ -1,4 +1,4 @@
-
+'use static';
 
 class GapiShotStorage {
   /**
@@ -13,14 +13,8 @@ class GapiShotStorage {
   constructor(gapiWrapper, shotCodec) {
     this._gapiWrapper = gapiWrapper;
     this._shotCodec = shotCodec;
-    // this._apiKey = apiKey;
-    // this._clientId = clientId;
     this._continuations = new Map();
   }
-  
-  // setApiKey(apiKey) {
-    // this._apiKey = apiKey;
-  // }
   
   setClientId(clientId) {
     this._clientId = clientId;
@@ -42,18 +36,6 @@ class GapiShotStorage {
     }
     return true;
   }
-  // getApiKey() {
-    // return this._apiKey;
-  // }
-  
-  // getClientId() {
-    // return this._clientId;
-  // }
-  
-  // TODO: break auth out into its own class. So we can manage apiKey+clientId vs clientId+clientSecret+refreshToken.
-  // isAuthCompatible(apiKey, clientId) {
-    // return apiKey === this._apiKey && clientId === this._clientId;
-  // }
   
   _takeContinuation(continuationToken) {
     if (!this._continuations.has(continuationToken)) {
@@ -69,9 +51,6 @@ class GapiShotStorage {
     this._continuations.set(continuationToken, continuation);
   }
 
-  
-  
-  
   async _listShotsWithGapi(q, orderBy, numResults, filterParams, nextPageToken) {
     var [files, nextPageToken] = await this._gapiWrapper.listFiles(q, orderBy, numResults, nextPageToken);
     // Client-side filters: date-based.
@@ -111,9 +90,7 @@ class GapiShotStorage {
       });
     return [filteredFiles, nextPageToken];
   }
-  
-  
-  
+
   /**
    * List shots ordered by time (read: files that end in ".shot", ordered by filename).
    *
@@ -462,110 +439,4 @@ GapiShotStorage._makeContinuationAsFiltersString = function(lastDate, ascending)
     dateBound = `latest=${dateString}`
   }
   return dateBound;
-}
-
-// GapiShotStorage._makeContinuationAsFilters = function(lastDate, ascending) {
-  // var continuationAsFilters;
-  // if (ascending) {
-    // var dateString = GapiShotStorage._nextOldestFilename(lastDate);
-    // continuationAsFilters = {earliest: dateString};
-  // } else { // Descending.
-    // var dateString = GapiShotStorage._nextYoungestFilename(lastDate);
-    // continuationAsFilters = {latest: dateString};
-  // }
-  // return continuationAsFilters;
-// }
-
-
-
-
-
-/**
- * Stores an ordered list of entries per key.
- * Entries may disappear at any time.
- */
-class _ListCache {
-  constructor(cacheSize) {
-    this._cacheSize = cacheSize;
-  }
-  
-  enqueue(key, value) {
-    
-  }
-  
-  dequeue(key, count) {
-    
-  }
-}
-
-
-
-
-
-
-
-
-
-// TODO: delete. this is not useful given async/await.
-class _BufferStage {
-  constructor(targetNumItems) {
-    this._targetNumItemds = targetNumItems;
-  }
-  
-  /**
-   * Set initial function which returns promise for first set of results.
-   */
-  setInitialFunction(initialFunction) {
-    this._initialFunction = initialFunction;
-  }
-  
-  /**
-   * Set next function which returns promise for subsequent sets of results with args:
-   *   continuationToken: the continuation token for the next set of results.
-   */
-  setNextFunction(nextFunction) {
-    this._nextFunction = nextFunction;
-  }
-  
-  /**
-   * Set map result function which takes the output from either the initial or next
-   * functions and return promise for array:
-   *   [0]: array of items.
-   *   [1]: continuation token. null if it doesn't exist.
-   */
-  setMapResultFunction(mapResultFunction) {
-    this._mapResultFunction = mapResultFunction;
-  }
-  
-  /**
-   * Returns a promise for object
-   *   buffer: array of items.
-   *   leftover: array containing overflow.
-   *   continuationToken: last continuation token returned.
-   */
-  fillBuffer() {
-    var bufferSoFar = [];
-    return _recursivelyMapResultAndDoNextFunction(
-      bufferSoFar,
-      this._initialFunction());
-  }
-  
-  _recursivelyMapResultAndDoNextFunction(bufferSoFar, previousPromise) {
-    return previousPromise
-      .then(this._mapResultFunction)
-      .then(([items, continuationToken]) => {
-        bufferSoFar.push(...items);
-        // TODO: divvy it up correctly from the beginning.
-        if (bufferSoFar.length >= this.targetNumItems) {
-          var result = {
-            buffer: bufferSoFar.slice(0, this.targetNumItems),
-            leftover: bufferSoFar.slice(this.targetNumItems),
-            continuationToken: continuationToken,
-          };
-          return result;
-        }
-        return recursivelyMapResultAndDoNextFunction(
-          this._nextFunction(continuationToken));
-      });
-  }
 }

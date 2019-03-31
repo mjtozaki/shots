@@ -1,5 +1,6 @@
 'use strict';
 
+// Auth.
 const applyAuth = createAction("APPLY_AUTH");
 const purgeAuth = createAction("PURGE_AUTH");
 
@@ -28,30 +29,13 @@ function setAuth(clientId, clientSecret, refreshToken) {
     } catch (e) {
       console.log("Error when writing to localStorage: " + e);
     }
-
-    
-    
-    // TODO: dispatch action saying auth being reset.
-    // apis.shotStorage.setApiKey(apiKey);
-
-    // This is set as response to state change.
-    // apis.shotStorage.setClientId(clientId);
-    // apis.shotStorage.setClientSecret(clientSecret);
-    // apis.shotStorage.setRefreshToken(refreshToken);
-
-    // try {
-      // window.localStorage.setItem('client_id', clientId);
-      // window.localStorage.setItem('client_secret', clientSecret);
-      // window.localStorage.setItem('refresh_token', refreshToken);
-    // } catch (e) {
-      // console.log("Error when writing to localStorage: " + e);
-    // }
-    // TODO: dispatch action saying auth works. or auth doesn't work.
   };
 }
 
+// Menu/options.
 const toggleOptionsMenu = createAction("TOGGLE_OPTIONS_MENU");
 
+// Redirects.
 const findingRedirect = createAction("FINDING_REDIRECT");
 const followingRedirect = createAction("FOLLOWING_REDIRECT");
 
@@ -193,7 +177,7 @@ function redirectYesterday(history) {
   };
 }
 
-
+// Shot listing.
 const requestShotsList = createAction("REQUEST_SHOTS_LIST");
 const receiveShotsList = createAction("RECEIVE_SHOTS_LIST");
 
@@ -234,6 +218,7 @@ function fetchShotsListIfNeeded() {
   };
 }
 
+// Shot view.
 const requestShot = createAction("REQUEST_SHOT");
 const receiveShot = createAction("RECEIVE_SHOT");
 
@@ -268,6 +253,7 @@ function deserializeShot(serializedShot) {
   };
 }
 
+// Sharing.
 function goToSharingLinkResult() {
   return (dispatch, getState, apis) => {
     const shotData = getState().shot;
@@ -307,37 +293,3 @@ function goToSharingLinkResult() {
     form.submit(); // Adios.
   };
 }
-
-/* State
-
-{
-  shots: {
-    12345: {
-      id: 12345,
-      name: "20190303T121212.shot",
-      parent: {
-        path: "",
-      },
-      date: Date(),
-    }
-  },
-  filter: {
-    earliest: "",
-    latest: "",
-    parentFilterSet: Set(),
-    
-  },
-  auth: {
-    apiKey: "",
-    clientId: "",
-  },
-  shot {
-    
-  },
-  
-}
-
-
-
-
- */

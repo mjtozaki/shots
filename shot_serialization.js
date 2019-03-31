@@ -98,11 +98,9 @@ class ShotSerializer {
   }
   
   static _version1_0ForwardProcessing(shotData) {
-    // Version 1.0: do nothing.
-        // Serialize.
+    // Serialize.
     let json = JSON.stringify(shotData);
     let utf8String = unescape(encodeURIComponent(json));
-    
 
     return utf8String;
   }

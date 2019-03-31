@@ -28,6 +28,37 @@
     }
   };
   
+  const filter = (state = {}, action) => {
+    switch (action.type) {
+      // Set filter upon receiving shots.
+      case 'RECEIVE_SHOTS': {
+        return {...action.payload.filter};
+      }
+      
+      // When filter is changed, set it.
+      case 'UPDATE_FILTER': {
+        return {...action.payload};
+      }
+
+      default: {
+        return state;
+      }
+    }
+  };
+
+  // Reducer for all redux-forms.
+  const form = ReduxForm.reducer.plugin({
+    // Reducers by reduxForm() name.
+    authSettingsForm: (state, action) => {
+      switch(action.type) {
+        case purgeAuth.toString():
+          return undefined; // Purge form data.
+        default:
+          return state;
+      }
+    },
+  });
+
   const options = (state = {
     menu: {
       show: false
@@ -65,43 +96,6 @@
     }
   };
   
-  const shots = (state = {}, action) => {
-    switch (action.type) {
-      case requestShotsList.toString(): {
-        return {...state, fetching: true, error: undefined};
-      }
-
-      case receiveShotsList.toString(): {
-        if (action.error) {
-          return {...state, fetching: false, error: action.payload};
-        }
-        return {...action.payload, fetching: false, error: undefined};
-      }
-      
-      default: {
-        return state;
-      }
-    }
-  };
-
-  const filter = (state = {}, action) => {
-    switch (action.type) {
-      // Set filter upon receiving shots.
-      case 'RECEIVE_SHOTS': {
-        return {...action.payload.filter};
-      }
-      
-      // When filter is changed, set it.
-      case 'UPDATE_FILTER': {
-        return {...action.payload};
-      }
-
-      default: {
-        return state;
-      }
-    }
-  };
-
   const shot = (state = {}, action) => {
     switch (action.type) {
       case requestShot.toString(): {
@@ -121,28 +115,32 @@
     }
   };
 
-  // // Reducer for all redux-forms.
-  // const form = ReduxForm.reducer.plugin({
-    // // Reducers by reduxForm() name.
-    // authSettingsForm: (state, action) => {
-      // switch(action.type) {
-        // case purgeAuth.toString():
-          // return undefined; // Purge form data.
-        // default:
-          // return state;
-      // }
-    // },
-  // });
-  
-  const form = ReduxForm.reducer;
+  const shots = (state = {}, action) => {
+    switch (action.type) {
+      case requestShotsList.toString(): {
+        return {...state, fetching: true, error: undefined};
+      }
+
+      case receiveShotsList.toString(): {
+        if (action.error) {
+          return {...state, fetching: false, error: action.payload};
+        }
+        return {...action.payload, fetching: false, error: undefined};
+      }
+      
+      default: {
+        return state;
+      }
+    }
+  };
 
   ns.rootReducer = combineReducers({
     auth,
+    filter,
+    form,
     options,
     redirect,
-    shots,
-    filter,
     shot,
-    form,
+    shots,
   });
 })();
