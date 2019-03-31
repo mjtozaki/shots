@@ -22,7 +22,8 @@
   var REDIRECT_URI = 'https://mjtozaki.github.io/shots/auth_sanitizer.html';
   var SCOPE = 'https://www.googleapis.com/auth/drive';
    
-  function step2(clientId) {
+  function step2(clientId, clientSecret) {
+    let state = encodeURIComponent(`client_id=${clientId}&client_secret=${clientSecret}`);
 
     var targetUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
       Object.entries(
@@ -31,7 +32,7 @@
           redirect_uri: encodeURIComponent(REDIRECT_URI),
           scope: encodeURIComponent(SCOPE),
           access_type: 'offline',
-          state: STATE_STEP4,
+          state: state,
           response_type: 'code',
           prompt: 'consent', // Required to generate the refresh token. Otherwise, just get access token.
         }
@@ -42,10 +43,25 @@
     location.href = targetUrl; // Adios.
   }
   
-  function step4() {
+  function recoverState(stateStr) {
+    let state = stateStr.split('&')
+      .map(pairStr => pairStr.split('='))
+      .reduce(
+        (obj, pair) => {
+          obj[pair[0]] = pair[1];
+          return obj;
+        },
+        {});
+    if (state.client_id !== undefined) {
+      document.getElementById('form-client-id').value = state.client_id;
+    }
+    if (state.client_secret !== undefined) {
+      document.getElementById('form-client-secret').value = state.client_secret;
+    }
+  }
+  
+  function step4(code, error) {
     // Parameters from google auth.
-    var error = url('#error');
-    var code = url('#code');
     
     if (error !== undefined) {
       addMessage('Step 4: hit error ' + error);
@@ -92,7 +108,7 @@
           if (xhr.status === 200) {
             var response = xhr.response;
             if (response.refresh_token !== undefined) {
-              addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
+              addMessage(`Successfully retrieved refresh token: <b>${response.refresh_token}</b>`);
             } else {
               addMessage('Refresh token was not sent. Response: ' + Object.entries(response));
             }
@@ -110,7 +126,8 @@
         addMessage('client id must be set before getting the auth code.');
         return false;
       }
-      step2(clientId);
+      var clientSecret = document.getElementById('form-client-secret').value;
+      step2(clientId, clientSecret);
       return false;
     };
           
@@ -149,21 +166,32 @@
       clientIdForm.value = clientId;
     }
 
-    var state = url('#state');
-    if (state === undefined) {
-      state = '2';
+    var stateStr = url('#state');
+    <!-- if (state === undefined) { -->
+      <!-- state = '2'; -->
+    <!-- } -->
+    if (stateStr !== undefined) {
+      addMessage("Recovering state from previous visit.");
+      recoverState(stateStr);
     }
-
-    switch (state) {
-  //  case '2':
-  //    step2();
-  //    break;
-    case STATE_STEP4:
-      step4();
-      break;
-    default:
-      break;
+    
+    var code = url('#code');
+    var error = url('#error');
+    if (code !== undefined || error !== undefined) {
+      addMessage("Extracting auth code.");
+      step4(code, error);
     }
+    
+    <!-- switch (state) { -->
+  <!-- //  case '2': -->
+  <!-- //    step2(); -->
+  <!-- //    break; -->
+    <!-- case STATE_STEP4: -->
+      <!-- step4(); -->
+      <!-- break; -->
+    <!-- default: -->
+      <!-- break; -->
+    <!-- } -->
   }, false);
 
   function addMessage(message) {
