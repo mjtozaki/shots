@@ -151,11 +151,17 @@ class ShotIndexFileMetadata {
 // TODO: locking
 class _GapiWrapper {
   constructor() {
-    this.activeApiKey = null;
+    // this.activeApiKey = null;
     this.activeClientId = null;
-    this.acquiringApiKey = null;
+    this.activeClientSecret = null;
+    this.activeRefreshToken = null;
+    this.activeAccessToken = null;
+    this.activeExpirationTime = 0;
+    // this.acquiringApiKey = null;
     this.acquiringClientId = null;
-    this.whenApiKeyAndClientIdAuthed = null;
+    this.acquiringClientSecret = null;
+    this.acquiringRefreshToken = null;
+    this.whenAuthed = null;
     this.whenClientAndAuthLoaded = null;
     const CACHE_DURATION = 1 * 60 * 1000; // Minutes.
     this.rpcCache = new _TimedCache({
@@ -192,79 +198,149 @@ class _GapiWrapper {
   }
   
   
-  ensureApiKeyAndClientIdAuthed(apiKey, clientId) {
+  // ensureApiKeyAndClientIdAuthed(apiKey, clientId) {
+  ensureAuthed(clientId, clientSecret, refreshToken) {
     // TODO: refactor
     var SCOPE = 'https://www.googleapis.com/auth/drive';
 
     // TODO: also check that another api/client hasn't begun auth.
-    if (this.activeApiKey === apiKey && this.activeClientId === clientId) {
+    // if (this.activeApiKey === apiKey && this.activeClientId === clientId) {
+    if (this.activeClientId === clientId && this.activeClientSecret === clientSecret
+        && this.activeRefreshToken === refreshToken && Date.now() < this.activeExpirationTime) {
       return Promise.resolve(true);
     }
     
-    if (this.acquiringApiKey === apiKey && this.acquiringClientId === clientId && this.whenApiKeyAndClientIdAuthed !== null) {
-      return this.whenApiKeyAndClientIdAuthed;
+    // if (this.acquiringApiKey === apiKey && this.acquiringClientId === clientId && this.whenApiKeyAndClientIdAuthed !== null) {
+    if (this.acquiringClientId === clientId && this.acquiringClientSecret === clientSecret
+        && this.acquiringRefreshToken === refreshToken && this.whenAuthed !== null) {
+      return this.whenAuthed;
     }
     
-    this.acquiringApiKey = apiKey;
+    // this.acquiringApiKey = apiKey;
     this.acquiringClientId = clientId;
-    this.whenApiKeyAndClientIdAuthed =
-      this.ensureClientAndAuthLoaded()
-      .then(
-        // Init client.
-        function() {
-          return gapi.client.init({
-            'apiKey': apiKey,
-            'clientId': clientId,
-            'scope': SCOPE,
-          });
-        },
-        function() {
-          // Throw.
+    this.acquiringClientSecret = clientSecret;
+    this.acquiringRefreshToken = refreshToken;
+    
+    // Refresh token.
+    this.whenAuthed = new Promise(resolve => {
+      const refreshAccessTokenUri = 'https://www.googleapis.com/oauth2/v4/token';
+      let xhr = new XMLHttpRequest();
+      xhr.responseType = 'json';
+      xhr.open("POST", refreshAccessTokenUri, true);
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      xhr.onreadystatechange = function() {
+        if (this.readyState === XMLHttpRequest.DONE) {
+          resolve(this);
         }
-      )
-      .then(
-        // Ensure signed in.
-        function() {
-          var needToSignIn = true;
-          var GoogleAuth = gapi.auth2.getAuthInstance();
-          if (GoogleAuth.isSignedIn.get()) {
-            var user = GoogleAuth.currentUser.get();
-            var isAuthorized = user.hasGrantedScopes(SCOPE);
-            if (!isAuthorized) {
-              console.log("Signed in and not authorized.");
-            } else {
-              needToSignIn = false;
-              console.log("Signed in and authorized!");
-            }
+      };
+      xhr.send(
+        `client_id=${clientId}&` +
+        `client_secret=${clientSecret}&` +
+        `refresh_token=${refreshToken}&` +
+        `grant_type=refresh_token`);
+    })
+      .then(xhr => {
+        if (xhr.status === 200) {
+          var response = xhr.response;
+          if (response.access_token !== undefined) {
+            return Promise.all([response.access_token, response.expires_in, this.ensureClientAndAuthLoaded]);
+
           } else {
-            console.log("Not signed in.");
+            throw 'Refresh token was not sent. Response: ' + Object.entries(response);
           }
-          if (needToSignIn) {
-            return GoogleAuth.signIn();
-          }
-          return Promise.resolve(true);
-        },
-        function() {
-          // Throw.
-        }
-      )
-      .then(
-        // Record that we are signed in.
-        () => {
-          // TODO: check that acquiring is same as local key and client id. If not, then do not record?
-          this.activeApiKey = apiKey;
-          this.activeClientId = clientId;
-        },
-        function() {
-          // Throw
-          console.log('signIn() failed apparently.');
-        }
-      );
-    return this.whenApiKeyAndClientIdAuthed;
+        } else {
+          throw `Failed to refresh access token. readyState=${xhr.readyState}, status=${xhr.status}`;
+        }        
+      })
+      .then(([accessToken, expiresIn]) => {
+        // Init client.
+        return gapi.client.init({
+          // 'apiKey': apiKey,
+          // 'clientId': clientId,
+          // 'scope': SCOPE,
+        })
+          .then(() => { // Naughty nesting to pass the variable.
+            gapi.client.setToken({
+              access_token: accessToken,
+            });
+            
+            // We should now be "signed in".
+            
+            const S_TO_MS = 1000;
+            const M_TO_S = 60;
+            const EXPIRATION_BUFFER = 5 * M_TO_S * S_TO_MS;
+            
+            this.activeClientId = clientId;
+            this.activeClientSecret = clientSecret;
+            this.activeRefreshToken = refreshToken;
+            this.activeAccessToken = accessToken;
+            this.activeExpirationTime = Date.now() + expiresIn * S_TO_MS - EXPIRATION_BUFFER;
+            this.whenAuthed = null;
+          });
+      })
+
+    return this.whenAuthed;
+    
+    // this.whenAuthed =
+      // this.ensureClientAndAuthLoaded()
+      // .then(
+        // // Init client.
+        // function() {
+          // return gapi.client.init({
+            // 'apiKey': apiKey,
+            // 'clientId': clientId,
+            // 'scope': SCOPE,
+          // });
+        // },
+        // function() {
+          // // Throw.
+        // }
+      // )
+      // .then(
+        // // Ensure signed in.
+        // function() {
+          // var needToSignIn = true;
+          // var GoogleAuth = gapi.auth2.getAuthInstance();
+          // if (GoogleAuth.isSignedIn.get()) {
+            // var user = GoogleAuth.currentUser.get();
+            // var isAuthorized = user.hasGrantedScopes(SCOPE);
+            // if (!isAuthorized) {
+              // console.log("Signed in and not authorized.");
+            // } else {
+              // needToSignIn = false;
+              // console.log("Signed in and authorized!");
+            // }
+          // } else {
+            // console.log("Not signed in.");
+          // }
+          // if (needToSignIn) {
+            // return GoogleAuth.signIn();
+          // }
+          // return Promise.resolve(true);
+        // },
+        // function() {
+          // // Throw.
+        // }
+      // )
+      // .then(
+        // // Record that we are signed in.
+        // () => {
+          // // TODO: check that acquiring is same as local key and client id. If not, then do not record?
+          // this.activeApiKey = apiKey;
+          // this.activeClientId = clientId;
+        // },
+        // function() {
+          // // Throw
+          // console.log('signIn() failed apparently.');
+        // }
+      // );
+    // return this.whenAuthed;
   }
   
   _makeCacheKeyPrefixForAuth() {
-    return `${this.activeApiKey},${this.activeClientId},`;
+    // return `${this.activeApiKey},${this.activeClientId},`;
+    // TODO: maybe this should be a unique user ID instead of the input to auth.
+    return `${this.activeClientId},${this.activeClientSecret},${this.activeRefreshToken},`;
   }
   
   _makeCacheKeyForDir(fileId) {

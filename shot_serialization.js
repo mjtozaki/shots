@@ -31,6 +31,7 @@ class ShotSerializer {
   deserializeFromUri(serialized) {
     let endOfVersion = serialized.indexOf('_');
     let version = serialized.substring(0, endOfVersion);
+    serialized = serialized.substring(endOfVersion+1); // Remove version prefix.
     
     if (ShotSerializer._VERSION_TO_PROCESS_FUNCTION[version] === undefined) {
       throw `Version ${version} not recognized.`

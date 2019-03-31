@@ -1,15 +1,32 @@
 "use strict";
 
-// Let's pollute global for simplicity.
-var a = rhh.a;
-var br = rhh.br;
-var button = rhh.button;
-var div = rhh.div;
-var h = rhh.h;
-var h2 = rhh.h2;
-var span = rhh.span;
+// // React aliases.
+// var a = rhh.a;
+// var br = rhh.br;
+// var button = rhh.button;
+// var div = rhh.div;
+// var h = rhh.h;
+// var h2 = rhh.h2;
+// var span = rhh.span;
 
-const Plot = createPlotlyComponent(Plotly);
+// // React Router aliases.
+// const Router = window.ReactRouterDOM.HashRouter;
+// const Route =  window.ReactRouterDOM.Route;
+// const Link =  window.ReactRouterDOM.Link;
+// const withRouter = window.ReactRouterDOM.withRouter;
+// //const Prompt =  window.ReactRouterDOM.Prompt;
+// //const Switch = window.ReactRouterDOM.Switch;
+// //const Redirect = window.ReactRouterDOM.Redirect;
+
+// const connect = window.ReactRedux.connect;
+// const Provider = window.ReactRedux.Provider;
+
+
+// const createStore = window.Redux.createStore;
+// const combineReducers = window.Redux.combineReducers;
+
+
+// const Plot = createPlotlyComponent(Plotly);
 //const Plot = plotComponentFactory(Plotly);
 
 console.log("before ShotsApp class declaration.");
@@ -18,35 +35,36 @@ console.log("before ShotsApp class declaration.");
 
 /** Top-level for Shots app. Everything starts and ends here. Only create once. */
 class ShotsApp extends React.Component {
-  constructor(props) {
-    // Default props.
-    if (props.enableLocalStorage === undefined) {
-      props = {...props, enableLocalStorage: false};
-    }
-    /* Props:
-     * enableLocalStorage
-     */
-    super(props);
+  // constructor(props) {
+    // // Default props.
+    // if (props.enableLocalStorage === undefined) {
+      // props = {...props, enableLocalStorage: false};
+    // }
+    // /* Props:
+     // * enableLocalStorage
+     // */
+    // super(props);
     
-    // State we might change but shouldn't be used with setState().
-    this.shotSerializer = new ShotSerializer();
-    this.shotStorage = new GapiShotStorage(GapiWrapper, new ShotCodec()); 
+    // // State we might change but shouldn't be used with setState().
+    // // this.shotSerializer = new ShotSerializer();
+    // // this.shotStorage = new GapiShotStorage(GapiWrapper, new ShotCodec()); 
 
-    // this bindings.
-    this.route = this.route.bind(this);
-    this.requestShotSharingLink = this.requestShotSharingLink.bind(this);
-    this.toggleOptions = this.toggleOptions.bind(this);
+    // // this bindings.
+    // this.route = this.route.bind(this);
+    // this.requestShotSharingLink = this.requestShotSharingLink.bind(this);
+    // this.toggleOptions = this.toggleOptions.bind(this);
     
-    // Top-level events.
-    window.addEventListener('hashchange', this.route, false);
+    // // Top-level events.
+    // window.addEventListener('hashchange', this.route, false);
 
-    // The heart of the app.
-    this.state = {
-      defaultHashPrefix: '#',
-      debugMessage: '',
-      showOptions: false,
-    };
-  }
+    // // The heart of the app.
+    // this.state = {
+      // defaultHashPrefix: '#',
+      // debugMessage: '',
+      // showOptions: false,
+    // };
+  // }
+  
   
   toggleOptions() {
     this.setState({
@@ -467,80 +485,169 @@ class ShotsApp extends React.Component {
   
   render() {
     var children = [];
-    children.push([
-      h(ShotsMenu, {
-        defaultHashPrefix: this.state.defaultHashPrefix,
-        shotFileId: this.state.shotFileId,
-        toggleOptions: this.toggleOptions,
-        showRelative: ShotsApp._showRelativeMenuControls(this.state.view),
-      }),
-      br(),
-    ]);
+    // children.push(
+      // h(ShotsMenu, {
+        // defaultHashPrefix: this.state.defaultHashPrefix,
+        // shotFileId: this.state.shotFileId,
+        // toggleOptions: this.toggleOptions,
+        // showRelative: ShotsApp._showRelativeMenuControls(this.state.view),
+      // }),
+      // br(),
+    // );
     
-    if (this.state.showOptions) {
-      children.push(h(ShotsOptionsBar), br());
-    }
+    // if (this.state.showOptions) {
+      // children.push(h(ShotsOptionsBar), br());
+    // }
     
-    // TODO: debug remove
-    children.push(h2(`message of the day: ${this.state.debugMessage}`));
-    
-    if (this.state.view === 'list') {
-      children.push(
-        h(ShotsList, {
-          defaultHashPrefix: this.state.defaultHashPrefix,
-          listData: this.state.listData,
-          // TODO: callback to request more list
-        }));
-    } else if (this.state.view === 'single') {
-      children.push(
-        h(SingleShotView, {
-          // TODO: get the data here, or get it before render?
-          byo: (this.state.view === 'byo_single'),
-          byoAlias: this.state.byoAlias,
-          requestLink: this.requestShotSharingLink.bind(this, this.state.shotData),
-          shotData: this.state.shotData,
-          shotSharingLink: this.state.shotSharingLink,
-          shotSharingLinkGetSuccess: this.state.shotSharingLinkGetSuccess,
-        }),
+    // Redirect route
+    children.push(
+      h(Route, {path: '/redirect/from/personal/:provider/:shotId/:relativeIndex', component: RedirectRelativeFromPersonal}),
+      h(Route, {path: '/redirect/index/personal/:provider/:index', component: RedirectWithAbsoluteIndex}),
+      h(Route, {path: '/redirect/yesterday', component: RedirectYesterday}),
       );
-    }
+    
+    children.push(
+      h(RoutedShotsMenu));
+      
+    children.push(
+      h(Route, {path: '/auth', component: RoutedAuthSettings}));
+    
+    children.push(
+      h(Route, {exact: true, path: '/', component: RoutedShotsList}));
+      
+    children.push(
+      h(Route, {path: '/personal/:provider/:shotId', component: RoutedSingleShotView}));
+      
+    // BYO version of single shot view.
+    children.push(
+      h(Route, {path: '/public/binary/:shortUrl/:serializedShot', component: RoutedByoSingleShotView}));
+    
+    // if (this.state.view === 'list') {
+      // children.push(
+        // h(ShotsList, {
+          // defaultHashPrefix: this.state.defaultHashPrefix,
+          // listData: this.state.listData,
+          // // TODO: callback to request more list
+        // }));
+    // } else if (this.state.view === 'single') {
+      // children.push(
+        // h(SingleShotView, {
+          // // TODO: get the data here, or get it before render?
+          // byo: (this.state.view === 'byo_single'),
+          // byoAlias: this.state.byoAlias,
+          // requestLink: this.requestShotSharingLink.bind(this, this.state.shotData),
+          // shotData: this.state.shotData,
+          // shotSharingLink: this.state.shotSharingLink,
+          // shotSharingLinkGetSuccess: this.state.shotSharingLinkGetSuccess,
+        // }),
+      // );
+    // }
+    
+    // // Testing router.
+    // children.push(
+      // h(Router, [
+        // h2('React Router Testing'),
+        // h(Link, {to: "/"}, 'Home'),
+             // br(),
+        // h(Link, {to: "/about"}, 'About'),
+        // br(),
+        // h(Link, {to: "/about/1zmeHEIcVYsrBCtB7HB-HY2bmZe0qC8kT"}, 'About a shot'),
+        // br(),
+        // h(Link, {to: "/about/azAZ09-_.%2525"}, 'About base64'),
+        
+        
+        // h(Route, {path: "/", exact: true, component: BootyA, ...this.state}),
+        // h(Route, {path: "/about/:shotId", exact: true, component: BootyB}),
+      // ]));
 
     return children;
   }
-
 }
 
+(function(ns = window) {
+  class AuthSyncedShotsApp extends React.Component {
+    constructor(props) {
+      super(props);
+      // TODO: move this somewhere else. constructor is not supposed to have side-effects.
+      this.setAuth();
+    }
+    setAuth() {
+      this.props.setAuth(this.props.auth.clientId, this.props.auth.clientSecret, this.props.auth.refreshToken);
+    }
+    // TODO: does not work for setting auth because it executes in post traversal order.
+    // So it will occur after Routes.
+    // componentDidMount() {
+    // }
+
+    componentDidUpdate(prevProps) {
+      // if (this.props.auth.apiKey !== prevProps.auth.apiKey || this.props.auth.clientId !== prevProps.auth.clientId) {
+      if (this.props.auth.clientId !== prevProps.auth.clientId || this.props.auth.clientSecret !== prevProps.auth.clientSecret
+          || this.props.auth.refreshToken !== prevProps.auth.refreshToken) {
+        this.setAuth();
+      }
+    }
+
+    render() {
+      return h(ShotsApp, {...this.props});
+    }
+  }
+  
+  const getAuth = (stateAuth) => {
+    return {...stateAuth};
+  };
+
+  const mapStateToProps = (state) => ({
+    auth: getAuth(state.auth),
+  });
+  
+  const mapDispatchToProps = (dispatch, ownProps) => ({
+    setAuth: (clientId, clientSecret, refreshToken) => dispatch(setAuth(clientId, clientSecret, refreshToken)),
+  });
+  
+  ns.AuthSyncedShotsApp = withRouter(connect(
+    mapStateToProps,
+    mapDispatchToProps,
+  )(AuthSyncedShotsApp));
+
+})();
 
 class ShotsMenu extends React.Component {
-  constructor(props) {
-    super(props);
-  }
   render() {
-    var prefix = this.props.defaultHashPrefix; // e.g. #apiKey=asdf&
-    var shotFileIndexParam = 'shot_file_id=' + this.props.shotFileId;
-    var children = [
+    var children = [];
+
+    var mainMenuChildren = [
       // Left side: Navigation.
-      a('.menu-item', {href: prefix + 'view=list'}, 'shots'),
-      a('.menu-item', {href: prefix + 'redirect=absolute_index&absolute_index=-1'}, 'last'),
-      a('.menu-item', {href: prefix + 'redirect=yesterday'}, 'yesterday'),
-      a('.menu-item', {href: prefix + 'redirect=absolute_index&absolute_index=0'}, 'first'),
+      h(Link, '.menu-item', {to: '/'}, 'shots'),
+      h(Link, '.menu-item', {to: '/redirect/index/personal/drive/-1'}, 'last'),
+      h(Link, '.menu-item', {to: '/redirect/yesterday'}, 'yesterday'),
+      h(Link, '.menu-item', {to: '/redirect/index/personal/drive/0'}, 'first'),
     ];
+    mainMenuChildren.push(
+      h(Route, {path: '/personal/:provider/:shotId', render: ({match: {params: {provider, shotId}}}) => [
+        h(Link, '.menu-item', {to: `/redirect/from/personal/${provider}/${shotId}/-10`}, '-10'),
+        h(Link, '.menu-item', {to: `/redirect/from/personal/${provider}/${shotId}/-1`}, '-1'),
+        h(Link, '.menu-item', {to: `/redirect/from/personal/${provider}/${shotId}/1`}, '+1'),
+      ]}),
+    );
+    mainMenuChildren.push(
+      // Right side: Options toggle.
+      a('.options-nav', {onClick: this.props.toggleOptionsMenu}, '\u00B7\u00B7\u00B7'),
+    );
     
-    if (this.props.showRelative) {
+    children.push(
+      div('.menu-bar', mainMenuChildren),
+    );
+    
+    if (this.props.options.menu.show) {
       children.push(
-        // Relative-to-current-shot navigation.
-        a('.menu-item', {href: prefix + 'redirect=relative_index&relative_index=-10&' + shotFileIndexParam}, '-10'),
-        a('.menu-item', {href: prefix + 'redirect=relative_index&relative_index=-1&' + shotFileIndexParam}, '-1'),
-        a('.menu-item', {href: prefix + 'redirect=relative_index&relative_index=1&' + shotFileIndexParam}, '+1'),
+        div([
+          h(Link, '.option-item', {to: '/auth'}, 'Auth settings'),
+        ]),
       );
     }
     
-    children.push(
-      // Right side: Options toggle.
-      a('.options-nav', {onClick: this.props.toggleOptions}, '\u00B7\u00B7\u00B7'),
-    );
-    
-    return div(".menu-bar", children);
+//    return div(".menu-bar", children);
+    return children;
   }
 }
 
@@ -568,24 +675,25 @@ class ShotsOptionsBar extends React.Component {
 }
 
 class ShotsList extends React.Component {
-  constructor(props) {
-    super(props);
-  }
+  // constructor(props) {
+    // super(props);
+  // }
   render() {
-    if (this.props.listData === undefined) {
+    if (this.props.shots.list === undefined) {
       return [];
     }
     let lastDate = new Date(0);
     let lastDateCount = 0;
-    let listDataWithDailyCount = this.props.listData
-      .reduceRight((wrappers, shot) => {
+    let listDataWithDailyCount = this.props.shots.list
+      .reduceRight((wrappers, shotId) => {
+        let shot = this.props.shots.db[shotId];
         if (lastDate.toDateString() !== shot.date.toDateString()) {
           lastDate = shot.date;
           lastDateCount = 0;
         }
         let dailyCount = ++lastDateCount;
         wrappers.push({
-          shot: shot,
+          shotId: shotId,
           dailyCount: dailyCount,
         });
         return wrappers;
@@ -594,10 +702,10 @@ class ShotsList extends React.Component {
       .reverse();
     let children = listDataWithDailyCount
       .map(
-        ({shot, dailyCount}) => h(ShotsListEntry, {
+        ({shotId, dailyCount}) => h(ShotsListEntry, {
           dailyCount: dailyCount,
-          defaultHashPrefix: this.props.defaultHashPrefix,
-          shot: shot,
+          // defaultHashPrefix: this.props.defaultHashPrefix,
+          shot: this.props.shots.db[shotId],
         }));
     return children;
   }
@@ -608,14 +716,17 @@ class ShotsListEntry extends React.Component {
     super(props);
   }
   render() {
-    let shotLocation = this.props.defaultHashPrefix + `view=single&shot_file_id=${this.props.shot.id}`;
+    //let shotLocation = this.props.defaultHashPrefix + `view=single&shot_file_id=${this.props.shot.id}`;
+    // TODO: keep filters.
+    let shotLocation = `/personal/drive/${this.props.shot.id}`;
+    
     let formattedDate = moment(this.props.shot.date).format(`ddd MMM DD gggg (#${this.props.dailyCount}) HH:mm:ss ZZ`);
     let shotTitle = formattedDate;
     // TODO: this probably outputs a double '/' if child of root.
     let shotDetails = `${this.props.shot.parent.path}/${this.props.shot.name}`;
     return div('.shots-list-entry', [
-      div('.shots-list-entry-title', [a({href: shotLocation}, shotTitle)]),
-      div('.shots-list-entry-details', [a({href: shotLocation}, shotDetails)]),
+      div('.shots-list-entry-title', [h(Link, {to: shotLocation}, shotTitle)]),
+      div('.shots-list-entry-details', [h(Link, {to: shotLocation}, shotDetails)]),
     ]);
   }
 }
@@ -628,24 +739,19 @@ class SingleShotView extends React.Component {
     let children = [];
     children.push(
       h(SingleShotGraph, {
-        shotData: this.props.shotData,
+        shotData: this.props.shot,
       }));
     
     if (!this.props.byo) {
       // Data from shot storage. Allow sharing.
-      /* Turning off sharing until the implementation is solved.
+      // Turning off sharing until the implementation is solved.
       children.push(
-        h(ShotSharingWidget, {
-          requestLink: this.props.requestLink,
-          shotSharingLink: this.props.shotSharingLink,
-          shotSharingLinkGetSuccess: this.props.shotSharingLinkGetSuccess,
-        }));
-        */
+        h(ShotSharingWidget));
     } else {
       // Bring your own data. Show link instead.
       children.push(
         h3('.normal-text', 'Share link: '),
-        h3('.normal-link', this.props.byoAlias),
+        h3('.normal-link', decodeURIComponent(this.props.match.params.shortUrl)),
       );
     }
     // TODO: metadata
@@ -659,6 +765,9 @@ class SingleShotGraph extends React.Component {
   }
   render() {
     var shotData = this.props.shotData;
+    if (shotData === undefined || shotData.lastFetched === undefined) {
+      return [];
+    }
     var pressure = {
       x: shotData.elapsed,
       y: shotData.pressure,
@@ -764,37 +873,55 @@ class SingleShotGraph extends React.Component {
       layout: layout,
     });
   }
-}
+}    
 
-class ShotSharingWidget extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {requestedShare: false};
-  }
-  
+// Validation function objects should be static. https://github.com/erikras/redux-form/issues/2629
+const required = value => (value || typeof value === 'number' ? undefined : 'Required');
+const renderField = ({
+  input,
+  label,
+  type,
+  meta: {touched, error},
+}) => {
+  return div([
+    rhh.label(label),
+    div([
+      rhh.input({...input, placeholder: label, type: type}),
+      ...((touched && error) ? [span(error)] : []),
+    ]),
+  ]);
+};
+
+class AuthSettings extends React.Component {
   render() {
-    let children = [];
-    children.push(
-      button({
-        onClick: () => {
-          this.setState({requestedShare: true});
-          this.props.requestLink();
-        },
-        disabled: this.state.requestedShare,
-      }, 'Share'));
+// const AuthSettings = ({onPurge, onSubmit, submitting}) => {
+  // const clientId = this.props.auth.clientId !== undefined ? this.props.auth.clientId : '';
+  // const clientSecret = this.props.auth.clientSecret !== undefined ? this.props.auth.clientSecret : '';
+  // const refreshToken = this.props.auth.refreshToken !== undefined ? this.props.auth.refreshToken : '';
+  
+    let {handleSubmit, onPurge, onSubmit, submitting} = this.props;
     
-    if (this.props.shotSharingLinkGetSuccess === true) {
-      children.push(
-        // TODO: make this prettier.
-        h2(this.props.shotSharingLink));
+    
+    
+    let children = [];
+    
+    children.push(
+      form({onSubmit: handleSubmit}, [
+        h(Field, {name: 'clientId', label: 'Client ID', component: renderField, type: 'text', validate: required}),
+        h(Field, {name: 'clientSecret', label: 'Client Secret', component: renderField, type: 'text', validate: required}),
+        h(Field, {name: 'refreshToken', label: 'Refresh Token', component: renderField, type: 'text', validate: required}),
+        div([
+          button({type: 'submit', disabled: submitting}, "Set"),
+        ]),
+      ]),
+      button({onClick: onPurge}, 'Purge Auth'),
+    );
 
-    } else if (this.props.shotSharingLinkGetSuccess === false) {
-      children.push(h2("Could not get a sharing link. Refresh and try again."));
-    }
     return children;
   }
 }
-    
-
+// };
+  // }
+// }
 
 //ReactDOM.render(h(ShotsApp), rootContainer);

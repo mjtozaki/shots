@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Styling -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,900" rel="stylesheet">
+
+  <script src="https://cdn.rawgit.com/dcodeIO/protobuf.js/6.8.8/dist/protobuf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js"></script>
+
+  <script src="decent.js"></script>
+  
+  
+  <!-- Main -->
+  <script type="text/javascript">
+    "use strict";
+
+    //import protobuf from "https://cdn.rawgit.com/dcodeIO/protobuf.js/6.8.8/dist/protobuf.min.js";
+    //const { require } = Components.utils.import("resource://gre/modules/commonjs/toolkit/require.js", {});
+    //import { require } from './util.mjs';
+
+    //var protobuf = require("protobufjs");
+    
+    
+    var shotContents = `
+clock 1552925144
+espresso_elapsed {0.0 0.033 0.035 0.096 0.239 0.441 0.641 0.839 1.092 1.292 1.49 1.692 1.893 2.092 2.343 2.543 2.743 2.945 3.142 3.342 3.592 3.791 3.992 4.191 4.392 4.592 4.842 5.045 5.242 5.441 5.691 5.84 6.092 6.291 6.492 6.691 6.943 7.09 7.344 7.542 7.741 7.942 8.193 8.34 8.592 8.792 8.991 9.192 9.39 9.591 9.846 10.044 10.241 10.448 10.639 10.843 11.039 11.292 11.492 11.691 11.892 12.09 12.342 12.543 12.743 12.94 13.143 13.342 13.592 13.792 13.991 14.19 14.392 14.592 14.79 15.04 15.242 15.442 15.641 15.892 16.04 16.291 16.492 16.691 16.89 17.098 17.342 17.541 17.74 17.942 18.139 18.342 18.593 18.791 18.992 19.19 19.39 19.59 19.793 20.042 20.24 20.442 20.64 20.84 21.047 21.291 21.492 21.69 21.891 22.09 22.293 22.542 22.744 22.94 23.142 23.341 23.594 23.791 23.992 24.191 24.394 24.591 24.893 25.041 25.242 25.439 25.641 25.841 26.042 26.291 26.49 26.692 26.893 27.091 27.29 27.543 27.74 27.944 28.144 28.341 28.543 28.792 28.992 29.19 29.393 29.592 29.79 30.041 30.24 30.439 30.64 30.839 31.042 31.292 31.493 31.69 31.89 32.095 32.29 32.543 32.741 32.94 33.143 33.341 33.542 33.792 33.992 34.191 34.391 34.591 34.792 35.092 35.241 35.441 35.639 35.839 36.041 36.291 36.491 36.689 36.891 37.09 37.291 37.541 37.743 37.941 38.142 38.343 38.54 38.792 38.991 39.191 39.391 39.59 39.793 40.046 40.244 40.491 40.639 40.841 41.041 41.291 41.489 41.69 41.889 42.091 42.289 42.543 42.792 42.941 43.143 43.34 43.542 43.79 44.092 44.223 44.393 44.591 44.795}
+espresso_pressure {0.0 0.13 0.14 0.18 0.12 0.18 0.16 0.19 0.17 0.22 0.2 0.18 0.19 0.18 0.2 0.18 0.2 0.2 0.21 0.19 0.16 0.22 0.19 0.26 0.24 0.21 0.24 0.21 0.26 0.28 0.22 0.28 0.33 0.32 0.26 0.3 0.35 0.35 0.39 0.42 0.4 0.4 0.43 0.42 0.44 0.46 0.47 0.5 0.52 0.55 0.55 0.58 0.59 0.59 0.63 0.64 0.66 0.66 0.7 0.73 0.75 0.76 0.79 0.8 0.8 0.82 0.83 0.83 0.84 0.86 0.87 0.9 0.94 0.99 1.05 1.11 1.18 1.28 1.34 1.4 1.51 1.58 1.65 1.9 2.39 2.91 3.62 4.55 5.61 6.59 7.31 7.83 8.23 8.49 8.7 8.84 8.88 8.98 9.05 9.05 9.03 9.06 9.05 9.02 9.02 9.08 9.02 9.08 9.01 9.07 8.98 9.08 8.99 9.02 8.99 9.07 8.99 9.01 9.01 9.03 9.02 9.01 9.03 8.98 9.05 8.97 9.02 8.89 9.03 8.99 9.02 8.97 8.97 8.92 8.89 8.89 8.83 8.8 8.78 8.78 8.77 8.68 8.69 8.62 8.61 8.58 8.52 8.49 8.48 8.47 8.39 8.37 8.34 8.34 8.32 8.26 8.19 8.25 8.16 8.13 8.09 8.06 8.04 8.02 7.94 7.94 7.93 7.89 7.83 7.81 7.79 7.77 7.7 7.7 7.7 7.6 7.63 7.59 7.54 7.5 7.5 7.46 7.42 7.37 7.38 7.35 7.26 7.27 7.19 7.21 7.16 7.14 7.13 7.06 7.05 7.09 6.98 6.91 6.92 6.91 6.89 6.8 6.83 6.77 6.75 6.69 6.69 6.66 6.63 6.58 6.56 6.52 6.52 6.46 6.42 6.4 6.39 6.35 6.28}
+espresso_weight {0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0}
+espresso_flow {0.0 2.0 2.03 2.06 2.0 2.03 1.99 2.04 1.97 2.02 2.01 1.98 2.01 2.03 2.0 2.0 1.97 1.95 2.0 2.0 1.98 2.01 1.98 1.95 1.98 2.03 2.04 2.04 2.01 2.04 2.03 2.09 1.97 1.98 2.03 2.05 2.01 2.06 2.04 1.96 2.04 1.98 2.04 2.01 2.04 2.0 2.02 2.01 2.01 2.03 1.99 2.02 2.02 2.02 2.02 1.99 2.01 1.99 1.99 2.0 1.99 1.99 2.01 1.98 1.99 1.97 2.01 1.92 1.95 1.93 1.95 1.97 1.93 1.96 1.96 1.98 1.97 1.97 1.98 2.01 1.99 1.96 1.96 2.46 3.0 3.52 3.98 4.19 4.08 3.73 3.32 2.88 2.48 2.12 1.82 1.55 1.35 1.17 0.99 0.87 0.78 0.68 0.61 0.55 0.54 0.48 0.48 0.43 0.44 0.4 0.43 0.39 0.42 0.39 0.43 0.4 0.43 0.41 0.42 0.41 0.44 0.44 0.43 0.45 0.43 0.47 0.46 0.5 0.49 0.52 0.51 0.53 0.54 0.52 0.56 0.56 0.57 0.57 0.6 0.64 0.62 0.67 0.68 0.67 0.7 0.72 0.73 0.75 0.78 0.78 0.82 0.84 0.87 0.88 0.9 0.88 0.93 0.93 0.96 1.0 1.03 1.06 1.08 1.1 1.13 1.16 1.17 1.18 1.18 1.21 1.22 1.22 1.25 1.29 1.27 1.31 1.35 1.37 1.39 1.41 1.44 1.46 1.46 1.5 1.53 1.54 1.56 1.55 1.57 1.56 1.6 1.65 1.66 1.68 1.7 1.68 1.69 1.7 1.7 1.73 1.74 1.77 1.77 1.78 1.77 1.8 1.82 1.84 1.84 1.83 1.86 1.89 1.88 1.89 1.89 1.87 1.88 1.87 1.9}
+espresso_flow_weight {0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0}
+espresso_temperature_basket {92.0 90.95 90.93 90.76 90.64 90.43 90.21 89.99 89.83 89.64 89.51 89.43 89.31 89.26 89.28 89.27 89.22 89.17 89.35 89.44 89.49 89.53 89.57 89.69 89.8 89.9 89.97 90.07 90.21 90.31 90.38 90.47 90.59 90.68 90.75 90.88 90.97 91.12 91.14 91.27 91.35 91.39 91.44 91.5 91.65 91.68 91.65 91.74 91.84 91.79 91.85 91.97 91.9 91.96 92.02 91.99 92.0 92.03 91.96 91.99 92.11 92.1 92.07 92.13 92.06 92.0 92.07 92.09 92.12 91.99 91.98 92.02 91.96 92.0 91.98 92.01 91.97 91.9 91.89 91.94 91.85 91.88 91.85 91.83 91.83 91.81 91.72 91.66 91.75 91.65 91.6 91.54 91.52 91.55 91.45 91.46 91.34 91.34 91.34 91.38 91.36 91.41 91.32 91.26 91.3 91.32 91.3 91.34 91.3 91.3 91.32 91.28 91.29 91.23 91.27 91.32 91.29 91.16 91.2 91.22 91.19 91.19 91.19 91.15 91.15 91.05 91.08 91.1 91.08 91.09 91.09 91.0 90.96 90.94 91.01 91.01 90.97 91.01 90.96 90.9 90.91 90.89 90.95 90.98 90.93 90.76 90.8 90.84 90.79 90.84 90.84 90.69 90.76 90.75 90.68 90.73 90.68 90.66 90.69 90.68 90.63 90.61 90.5 90.52 90.59 90.59 90.55 90.57 90.47 90.5 90.54 90.5 90.48 90.41 90.47 90.44 90.47 90.53 90.49 90.49 90.46 90.5 90.46 90.48 90.47 90.51 90.44 90.45 90.43 90.5 90.51 90.57 90.57 90.54 90.56 90.57 90.72 90.66 90.61 90.66 90.76 90.74 90.78 90.75 90.77 90.81 90.8 90.82 90.9 90.9 90.88 90.89 91.01 91.02 91.07 91.04 91.09 91.03 91.07}
+espresso_temperature_mix {92.0 91.71 90.47 88.74 88.64 89.57 90.64 91.34 92.12 92.76 93.24 93.92 94.3 94.5 94.78 95.09 95.37 95.51 95.68 95.82 95.86 95.82 95.82 95.82 95.79 95.75 95.75 95.75 95.82 95.64 95.64 95.64 95.54 95.37 95.23 95.05 94.95 94.82 94.71 94.64 94.57 94.37 94.37 94.23 94.02 93.85 93.79 93.65 93.61 93.38 93.34 93.1 93.0 92.76 92.73 92.63 92.59 92.22 92.12 92.08 92.05 91.78 91.71 91.48 91.41 91.24 91.17 91.0 90.91 90.8 90.74 90.54 90.34 90.1 89.84 89.67 89.44 89.04 88.84 88.81 88.58 88.58 88.74 88.91 89.17 89.67 90.27 90.8 91.34 91.81 91.88 92.02 92.25 92.15 92.25 92.22 92.32 92.25 92.25 92.18 92.32 92.18 92.12 92.12 92.08 92.02 92.08 91.95 92.05 91.81 91.75 91.71 91.78 91.75 91.54 91.51 91.54 91.51 91.54 91.51 91.34 91.38 91.24 91.34 91.14 91.14 91.0 91.0 90.94 90.91 90.91 90.77 90.84 90.77 90.74 90.84 90.64 90.61 90.57 90.57 90.74 90.57 90.64 90.64 90.67 90.54 90.7 90.8 91.0 90.84 90.97 91.04 91.04 91.17 91.24 91.54 91.34 91.58 91.61 91.71 91.75 92.02 92.15 92.15 92.18 92.32 92.66 92.59 92.66 92.69 92.9 92.86 93.14 93.1 93.27 93.24 93.41 93.44 93.54 93.61 93.54 93.65 93.79 93.82 93.99 93.95 94.13 94.16 94.23 94.3 94.57 94.47 94.47 94.44 94.68 94.68 94.64 94.75 94.64 94.71 94.85 94.82 94.82 94.82 94.82 94.88 94.88 94.92 94.88 94.75 94.78 94.82 94.82 94.78 94.78 94.75 94.92 94.75 94.75}
+settings {
+	accelerometer_angle 45
+	active_settings_tab settings_2a
+	advanced_shot {}
+	advanced_shot_chart_temp_max 100
+	advanced_shot_chart_temp_min 80
+	allow_unheated_water 1
+	app_brightness 55
+	author Decent
+	bean_brand {}
+	bean_notes {}
+	bean_type {}
+	ble_unpair_at_exit 1
+	bluetooth_address E7:0A:59:A7:EC:E4
+	chart_dashes_flow {}
+	chart_dashes_pressure {}
+	chart_dashes_temperature {}
+	color_stage_1 {#c8e7d5}
+	color_stage_2 {#efdec2}
+	color_stage_3 {#edceca}
+	current_frame_description ending
+	display_connected_msg_seconds 5
+	display_espresso_water_delta_number 1
+	display_flow_delta_line 0
+	display_fluid_ounces_option 0
+	display_group_head_delta_number 0
+	display_pressure_delta_line 0
+	display_rate_espresso 1
+	display_weight_delta_line 0
+	drink_ey 0
+	drink_tds 0
+	drink_weight 0
+	enable_ampm 0
+	enable_commanumbers 0
+	enable_fahrenheit 0
+	enable_fluid_ounces 0
+	enable_negative_flow_charts 0
+	enable_spoken_prompts 0
+	espresso_chart_over 3
+	espresso_chart_under 10
+	espresso_count 190
+	espresso_decline_time 45
+	espresso_enjoyment 0
+	espresso_hold_time 10
+	espresso_max_time 85.0
+	espresso_notes {}
+	espresso_pressure 9.0
+	espresso_step_1 pressure
+	espresso_step_2 pressure
+	espresso_step_3 pressure
+	espresso_temperature 92.0
+	espresso_typical_volume 200
+	final_desired_shot_weight 36
+	flight_mode_angle 30
+	flight_mode_enable 1
+	flow_decline_stop_volumetric 100
+	flow_hold_stop_volumetric 100
+	flow_profile_decline 1
+	flow_profile_decline_time 23
+	flow_profile_hold 1.8
+	flow_profile_hold_time 0
+	flow_profile_minimum_pressure 6
+	flow_profile_preinfusion 4.2
+	flow_profile_preinfusion_time 6
+	flow_rate_transition smooth
+	flow_rise_timeout 10
+	flying 0
+	goal_is_basket_temp 1
+	god_espresso_filename {}
+	god_espresso_flow {}
+	god_espresso_flow_weight {}
+	god_espresso_name {}
+	god_espresso_pressure {}
+	god_espresso_temperature_basket {}
+	grinder_dose_weight 0
+	grinder_model {}
+	grinder_setting {}
+	has_refractometer 1
+	has_scale 1
+	history_saved 0
+	insight_skin_show_embedded_profile 0
+	language en
+	logfile log.txt
+	machine_name {pretty decent}
+	max_ble_connect_attempts 10
+	max_steam_pressure 3
+	max_stop_at_weight 100
+	minimum_water_temperature 80
+	my_name {}
+	name {}
+	one_tap_mode 0
+	original_profile_title {E61 classic at 9 bar}
+	preheat_temperature 90
+	preheat_volume 50
+	preinfusion_enabled 1
+	preinfusion_flow_rate 2.0
+	preinfusion_flow_rate2 4
+	preinfusion_guarantee 1
+	preinfusion_stop_flow_rate 1
+	preinfusion_stop_pressure 2.0
+	preinfusion_stop_timeout 30
+	preinfusion_stop_volumetric 100
+	preinfusion_temperature 92
+	preinfusion_time 30
+	preload_all_page_images 0
+	preset_counter 1
+	pressure_decline_stop_volumetric 100
+	pressure_end 2.0
+	pressure_hold_stop_volumetric 100
+	pressure_hold_time 10
+	pressure_rampup_stop_volumetric 100
+	pressure_rampup_timeout 20
+	profile {e61 classic at 9 bar}
+	profile_filename {e61 classic at 9 bar}
+	profile_graph_smoothing_technique quadratic
+	profile_has_changed 1
+	profile_language en
+	profile_notes {The E61 machine was invented by Faema in 1961 and is still the most classic and most copied espresso machine design.  It is likely what most people mean when they say Professional Italian Espresso Machine}
+	profile_step {}
+	profile_title {E61 classic at 9 bar}
+	profile_to_save {e61 classic at 9 bar}
+	roast_date {}
+	roast_level {}
+	saver_brightness 0
+	scale_button_starts_espresso 0
+	scentone {}
+	scheduler_enable 0
+	scheduler_sleep 6000
+	scheduler_wake 3600
+	screen_saver_change_interval 5
+	screen_saver_delay 60
+	screen_size_height 800
+	screen_size_width 1280
+	seconds_after_espresso_stop_to_continue_weighing 8
+	seconds_to_display_done_espresso 120
+	seconds_to_display_done_flush 120
+	seconds_to_display_done_hotwater 120
+	seconds_to_display_done_steam 120
+	settings_1_page settings_1
+	settings_profile_type settings_2a
+	shot_weight_percentage_stop 79
+	skale_bluetooth_address {}
+	skin Insight
+	sound_button_in 8
+	sound_button_out 11
+	speaking_pitch 1.0
+	speaking_rate 1.5
+	steam_max_time 120
+	steam_temperature 160
+	steam_timeout 40.0
+	steaming_count 53
+	stop_weight_before_seconds 2.8
+	stress_test 0
+	temperature_target portafilter
+	timer_interval 100
+	water_count 8
+	water_level_sensor_max 50
+	water_max_vol 500
+	water_refill_point 5
+	water_speed_type flow
+	water_temperature 80
+	water_time_max 60
+	water_volume 50.0
+	waterlevel_blink_start_offset 5
+	waterlevel_indicator_blink 1
+	waterlevel_indicator_blink_rate 1000
+	waterlevel_indicator_on 1
+}
+machine {
+	advanced_shot_moveone_enabled 1
+	app_update_button_label Update
+	calibration_flow {}
+	calibration_pressure {}
+	calibration_temperature {}
+	cinstance 0
+	cmdstack {}
+	connect_time 1552431324
+	current_context espresso_3_zoomed
+	current_frame_number 2
+	currently_erasing_firmware 0
+	currently_updating_firmware {}
+	cuuid 0000A002-0000-1000-8000-00805F9B34FB
+	cuuid_0A 0000A00A-0000-1000-8000-00805F9B34FB
+	cuuid_0B 0000A00B-0000-1000-8000-00805F9B34FB
+	cuuid_0C 0000A00C-0000-1000-8000-00805F9B34FB
+	cuuid_0D 0000A00D-0000-1000-8000-00805F9B34FB
+	cuuid_0E 0000A00E-0000-1000-8000-00805F9B34FB
+	cuuid_0F 0000A00F-0000-1000-8000-00805F9B34FB
+	cuuid_01 0000A001-0000-1000-8000-00805F9B34FB
+	cuuid_02 0000A002-0000-1000-8000-00805F9B34FB
+	cuuid_06 0000A006-0000-1000-8000-00805F9B34FB
+	cuuid_09 0000A009-0000-1000-8000-00805F9B34FB
+	cuuid_10 0000A010-0000-1000-8000-00805F9B34FB
+	cuuid_11 0000A011-0000-1000-8000-00805F9B34FB
+	cuuid_12 0000A012-0000-1000-8000-00805F9B34FB
+	cuuid_skale_EF80 0000EF80-0000-1000-8000-00805F9B34FB
+	cuuid_skale_EF81 0000EF81-0000-1000-8000-00805F9B34FB
+	cuuid_skale_EF82 0000EF82-0000-1000-8000-00805F9B34FB
+	device_handle ble2
+	factory_calibration_flow {}
+	factory_calibration_pressure {}
+	factory_calibration_temperature {}
+	final_espresso_weight 0
+	final_water_weight 0
+	firmware_bytes_uploaded 0
+	firmware_crc 3015272594
+	firmware_update_button_label {Firmware update available}
+	firmware_update_size 0
+	flow 0.83740234375
+	flow_delta 0.03515625
+	found 0
+	goal_flow 0.5
+	goal_pressure 0.0
+	goal_temperature 92.0
+	group_heater_wattage 500
+	GroupPressure 0
+	has_catering_kit 0
+	has_plumbing_kit 0
+	head_temperature 91.153564453125
+	hertz 50
+	last_ping 1552925144
+	max_flowrate 6
+	max_flowrate_v11 8
+	max_pressure 12
+	max_temperature 100
+	maxpressure 12
+	min_temperature 80
+	mix_temperature 94.296875
+	pour_volume 43.1488037109375
+	preinfusion_volume 40.4873046875
+	pressure 0.02392578125
+	pressure_delta -0.0068359375
+	previouscmd {ble write ble2 0000A000-0000-1000-8000-00805F9B34FB 0 0000A002-0000-1000-8000-00805F9B34FB 0 }
+	scale_autostop_triggered 1
+	scale_sensor_weight 0
+	scale_weight {}
+	scale_weight_rate 0
+	scanning 0
+	serial_number 0
+	sinstance 12
+	skale_device_handle 0
+	state 2
+	steam_heater_temperature 158
+	steam_heater_wattage 1500
+	steam_max_temperature 170
+	steam_min_temperature 120
+	steam_time_max 120
+	steam_time_min 1
+	substate 0
+	suuid 0000A000-0000-1000-8000-00805F9B34FB
+	suuid_skale 0000FF08-0000-1000-8000-00805F9B34FB
+	timer 0
+	version {FW_Sha 0 FW_Commits 0 FW_APIVersion 0 FW_Changes 0 FW_Release 0.0 BLE_Sha 586EA180 BLE_Commits 441 BLE_APIVersion 4 BLE_Changes 73 BLE_Release 0.9}
+	voltage 110
+	volume 111.3303076171875
+	water_heater_wattage 1500
+	water_level 11.453125
+	water_level_full_point 40
+	water_level_mm_correction 5
+	water_level_percent 0
+	water_max_temperature 95
+	water_min_temperature 20
+	water_time_min 1
+	wrote 0
+}
+`;
+    
+    let shot = new ShotCodec().getShotFromFileContents(shotContents, {name: '20190318T090544.shot', parent: {path: '/My Drive/coffee/de_shots'}});
+    let shotWithProtoNames = {
+      timestamp: shot.timestamp.getTime(),
+      elapsed: shot.elapsed,
+      pressure: shot.pressure,
+      weight: shot.weight,
+      flow: shot.flow,
+      flowWeight: shot.flowWeight,
+      temperatureBasket: shot.temperatureBasket,
+      temperatureMix: shot.temperatureMix,
+      temperatureTarget: shot.temperatureTarget,
+      author: shot.author,
+      filename: shot.filename,
+      parent_path: shot.parentPath,
+    };
+    
+    // Convert numbers to string for a test:
+    shotWithProtoNames = {
+      ...shotWithProtoNames,
+      elapsed: [...shot.elapsed].map(a=>String(a)),
+      pressure: [...shot.pressure].map(a=>String(a)),
+      weight: [...shot.weight].map(a=>String(a)),
+      flow: [...shot.flow].map(a=>String(a)),
+      flowWeight: [...shot.flowWeight].map(a=>String(a)),
+      temperatureBasket: [...shot.temperatureBasket].map(a=>String(a)),
+      temperatureMix: [...shot.temperatureMix].map(a=>String(a)),
+      temperatureTarget: [...shot.temperatureTarget].map(a=>String(a)),
+    
+    };
+    
+    // TODO: try dividing into 2-4 numbers instead. maybe this will encode better because of how variable ints work.
+    function makeFixed(strRep) {
+      let integer = Math.floor(strRep);
+      let fraction = 0;
+      let dotIndex = strRep.indexOf('.');
+      if (dotIndex !== -1) {
+        let fractionalStr = strRep.substring(dotIndex+1);
+        if (fractionalStr !== '') {
+          let leftJustifiedArray = [...fractionalStr];
+          
+          for (let i = 3; i !== 0; --i) {
+            let digit = leftJustifiedArray.shift();
+            let digitValue = digit === undefined ? 0 : Number(digit);
+            fraction += digitValue * 10**i;
+          }
+        }
+      }
+      return (integer << 14) | fraction;
+    }
+    
+    function unFixed(fixed) {
+      let strRep = String(Number(fixed >> 14)); // integer
+      
+      let fractionalPartsOf10k = fixed & 0x3FFF;
+      if (fractionalPartsOf10k > 0) {
+        strRep = strRep + '.' + ("000" + String(fractionalPartsOf10k)).slice(-4);
+
+        //strRep = strRep + '.' + String(fractionalPartsOf10k / 10000);
+      }
+      return strRep;
+      
+    }
+    
+    // Convert numbers to fixed point.
+    shotWithProtoNames = {
+      ...shotWithProtoNames,
+      elapsed: [...shotWithProtoNames.elapsed].map(a=>makeFixed(a)),
+      pressure: [...shotWithProtoNames.pressure].map(a=>makeFixed(a)),
+      weight: [...shotWithProtoNames.weight].map(a=>makeFixed(a)),
+      flow: [...shotWithProtoNames.flow].map(a=>makeFixed(a)),
+      flowWeight: [...shotWithProtoNames.flowWeight].map(a=>makeFixed(a)),
+      temperatureBasket: [...shotWithProtoNames.temperatureBasket].map(a=>makeFixed(a)),
+      temperatureMix: [...shotWithProtoNames.temperatureMix].map(a=>makeFixed(a)),
+      temperatureTarget: [...shotWithProtoNames.temperatureTarget].map(a=>makeFixed(a)),
+    };
+
+    
+    protobuf.load("shot.proto", function(err, root) {
+      if (err) {
+        throw err;
+      }
+      
+      console.log("before protobuf:");
+      console.log(shotWithProtoNames);
+      
+      // Obtain a message type
+      //var ShotAnnotationMessage = root.lookupType("shots.ShotAnnotation");
+      let ShotDataMessage = root.lookupType("shots.ShotData");
+      
+      let shotDataWireFormat = ShotDataMessage.encode(shotWithProtoNames).finish();
+      
+      console.log(shotDataWireFormat);
+      console.log(shotDataWireFormat.length);
+      
+      let compressedAsBinaryString = pako.deflate(shotDataWireFormat, {to: 'string'});
+      let forTransport = btoa(compressedAsBinaryString);
+      
+      console.log(forTransport);
+      console.log(forTransport.length);
+      
+      
+      // Walk it back.
+      let beforeDeflate = atob(forTransport);
+      let protobuffer = pako.inflate(beforeDeflate);
+      let regurgitated = ShotDataMessage.decode(protobuffer);
+      console.log("encoded to wire format, decoded to obj");
+      console.log(regurgitated);
+      
+      let allUnfixed = {
+        ...regurgitated,
+        elapsed: [...regurgitated.elapsed].map(a=>unFixed(a)),
+        pressure: [...regurgitated.pressure].map(a=>unFixed(a)),
+        weight: [...regurgitated.weight].map(a=>unFixed(a)),
+        flow: [...regurgitated.flow].map(a=>unFixed(a)),
+        flowWeight: [...regurgitated.flowWeight].map(a=>unFixed(a)),
+        temperatureBasket: [...regurgitated.temperatureBasket].map(a=>unFixed(a)),
+        temperatureMix: [...regurgitated.temperatureMix].map(a=>unFixed(a)),
+        temperatureTarget: [...regurgitated.temperatureTarget].map(a=>unFixed(a)),
+      
+      };
+      console.log('unfixed');
+      console.log(allUnfixed);
+      
+    });
+    
+      
+  </script>
+
+</head>
+<body>
+  <!-- Menu Bar -->
+  <div style="display:flex">
+    <a id="shots-nav"><span class="odd-nav">shots</span></a>
+    <a id="last-nav"><span class="even-nav">last</span></a>
+    <a id="yesterday-nav"><span class="odd-nav">yesterday</span></a>
+    <a id="first-nav"><span class="even-nav">first</span></a>
+    <a id="minus-10-nav"><span class="odd-nav">-10</span></a>
+    <!-- <a id="minus-50-nav"><span class="odd-nav">-50</span></a>
+    <a id="minus-100-nav"><span class="even-nav">-100</span></a> -->
+    <a id="prev-nav"><span class="even-nav">-1</span></a>
+    <a id="next-nav"><span class="odd-nav">+1</span></a>
+    <a id="options-nav" style="margin-left:auto"><span class="options-nav">&#183;&#183;&#183;</span></a>
+  </div>
+  <br>
+  
+  <!-- Options Bar -->
+  <div id="options-container" hidden>
+    <div style="display:flex">
+      <span class="odd-option">
+        <select id="shotindex-select"></select>
+        <button id="shotindex-switch-button" type="button">Switch</button>
+      </span>
+      <span class="even-option">goodbye</span>
+    </div>
+  <br>
+  </div>
+
+  <div id="api-form-container" hidden>
+    <form method="get">
+      <div class="form">
+        <label class="form-text" for="api-form-api-key">api key</label>
+        <input id="api-form-api-key" type="text" name="api_key">
+      </div>
+      <div class="form">
+        <label class="form-text" for="api-form-client-id">client id</label>
+        <input id="api-form-client-id" type="text" name="client_id">
+      </div>
+      <input class="form-text" id="api-form-set" type="submit" value="Set">
+      <div id="api-form-warning" hidden>api key and client id must be populated to set.</div>
+    </form>
+  </div>
+  <!-- <button onclick="appendToHash()">Append to hash</button> -->
+  
+  <div id="listing-container" hidden>
+  </div>
+
+  <div id="single-shot-container" hidden>
+    <div class="shot_plot" id="shot_plot"></div>
+    <div id="shot_annotations_container" hidden>
+      <form>
+        <!--
+        <div class="form">
+          <label class="form-text" for="shot_annotations_dose_mass">Dose (g)</label>
+          <input id="shot_annotations_dose_mass" type="text" name="dose_mass">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_beverage_mass">Beverage (g)</label>
+          <input id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_grind">Grind Setting</label>
+          <input id="shot_annotations_grind" type="text" name="grind">
+        </div>
+        <div class="form">
+          <label class="form-text" for="shot_annotations_description">Description</label>
+          <textarea id="shot_annotations_description" name="description"></textarea>
+        </div>
+        -->
+        
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_dose_mass">Dose (g)</label>
+          <input class="new-form-input" id="shot_annotations_dose_mass" type="text" name="dose_mass">
+        </div>
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_beverage_mass">Beverage (g)</label>
+          <input class="new-form-input" id="shot_annotations_beverage_mass" type="text" name="beverage_mass">
+        </div>
+        <div class="small-annotation">
+          <label class="new-form-label" for="shot_annotations_grind">Grind Setting</label>
+          <input class="new-form-input" id="shot_annotations_grind" type="text" name="grind">
+        </div>
+        <div class="big-annotation">
+          <label class="new-form-label" for="shot_annotations_description">Description</label>
+          <textarea class="big-input" id="shot_annotations_description" name="description"></textarea>
+        </div>
+        
+        <input id="shot_annotations_row_number" type="hidden" name="row_number">
+        <input id="shot_annotations_file_id" type="hidden" name="file_id">
+        
+        <input class="form-text" id="shot_annotations_update" type="submit" value="Update">
+        <label class="form-warning-text" id="shot_annotations_unsaved_warning" hidden>Changes are unsaved.</label>
+        <label class="form-warning-text" id="shot_annotations_last_error" hidden></label>
+      </form>
+    </div>
+    <div class="shot_text" id="file_contents" hidden></div>
+  </div>
+</body>
+</html>

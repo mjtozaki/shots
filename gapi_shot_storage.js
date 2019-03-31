@@ -18,12 +18,29 @@ class GapiShotStorage {
     this._continuations = new Map();
   }
   
-  setApiKey(apiKey) {
-    this._apiKey = apiKey;
-  }
+  // setApiKey(apiKey) {
+    // this._apiKey = apiKey;
+  // }
   
   setClientId(clientId) {
     this._clientId = clientId;
+  }
+
+  setClientSecret(clientSecret) {
+    this._clientSecret = clientSecret;
+  }
+
+  setRefreshToken(refreshToken) {
+    this._refreshToken = refreshToken;
+  }
+  
+  async isAuthValid() {
+    try {
+      await this._gapiWrapper.ensureAuthed(this._clientId, this._clientSecret, this._refreshToken);
+    } catch (e) {
+      return false;
+    }
+    return true;
   }
   // getApiKey() {
     // return this._apiKey;
@@ -34,9 +51,9 @@ class GapiShotStorage {
   // }
   
   // TODO: break auth out into its own class. So we can manage apiKey+clientId vs clientId+clientSecret+refreshToken.
-  isAuthCompatible(apiKey, clientId) {
-    return apiKey === this._apiKey && clientId === this._clientId;
-  }
+  // isAuthCompatible(apiKey, clientId) {
+    // return apiKey === this._apiKey && clientId === this._clientId;
+  // }
   
   _takeContinuation(continuationToken) {
     if (!this._continuations.has(continuationToken)) {
@@ -181,7 +198,7 @@ class GapiShotStorage {
     // Fill buffer.
     var files;
     var firstIteration = true;
-    await this._gapiWrapper.ensureApiKeyAndClientIdAuthed(this._apiKey, this._clientId);
+    await this._gapiWrapper.ensureAuthed(this._clientId, this._clientSecret, this._refreshToken);
     while (true) {
       if (buffer.length >= numResults) {
         var results = buffer.slice(0, numResults);
@@ -270,7 +287,7 @@ class GapiShotStorage {
    *   author: author name.
    */
   async getShot(shotId) {
-    await this._gapiWrapper.ensureApiKeyAndClientIdAuthed(this._apiKey, this._clientId);
+    await this._gapiWrapper.ensureAuthed(this._clientId, this._clientSecret, this._refreshToken);
     let shotFile = await this._gapiWrapper.getFile(shotId);
     let shotFileContents = await this._gapiWrapper.getFileContents(shotId);
     return this._shotCodec.getShotFromFileContents(shotFileContents, shotFile);
