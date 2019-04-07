@@ -117,7 +117,9 @@
       .then(
         function(xhr) {
           var response = xhr.response;
-          filesSoFar.push(...response.files);
+          // Sanitize files. Add empty parents field if missing.
+          const files = response.files.map(file => (file.parents !== undefined ? file : {...file, parents: []}));
+          filesSoFar.push(...files);
           if (response.nextPageToken !== undefined) {
             return listAllDriveDirectories(filesSoFar, accessToken, response.nextPageToken);
           } else {
