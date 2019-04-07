@@ -72,21 +72,20 @@ class GapiShotStorage {
         }
         return true;
       })
-      .map(file => {
+      .flatMap(file => {
         // Exact file datetime.
-        var datetime;
         var result = GapiShotStorage.SHOTFILE_DATETIME_PATTERN.exec(file.name);
         if (result === null) {
           console.log(`Failed to find datetime of shot file ${file.name} (${file.fileId}).`);
-        } else {
-          datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
+          return [];
         }
-        return {
+        var datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
+        return [{
           name: file.name,
           id: file.id,
           date: datetime,
           parent: file.parent,
-        };
+        }];
       });
     return [filteredFiles, nextPageToken];
   }
