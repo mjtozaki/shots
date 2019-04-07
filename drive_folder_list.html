@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript">
+  "use strict";
+   
+  var STATE_STEP4 = '4';
+  var REDIRECT_URI = 'https://mjtozaki.github.io/shots/auth_sanitizer.html';
+  var SCOPE = 'https://www.googleapis.com/auth/drive';
+   
+  function step2(clientId) {
+    var targetUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+      Object.entries(
+        {
+          client_id: clientId,
+          redirect_uri: encodeURIComponent(REDIRECT_URI),
+          scope: encodeURIComponent(SCOPE),
+          access_type: 'offline',
+          state: STATE_STEP4,
+          response_type: 'code',
+          prompt: 'consent', // Required to generate the refresh token. Otherwise, just get access token.
+        }
+      )
+      .map(entry => `${entry[0]}=${entry[1]}`)
+      .join('&');
+    location.href = targetUrl; // Adios.
+  }
+  
+  function step4() {
+    // Parameters from google auth.
+    var error = url('#error');
+    var code = url('#code');
+    
+    if (error !== undefined) {
+      addMessage('Step 4: hit error ' + error);
+      return;
+    }
+    
+    if (code === undefined) {
+      addMessage('Step 4: expected a code, but there was none');
+      return;
+    }
+    
+    addMessage('Received auth code: ' + code);    
+    var authCodeForm = document.getElementById('form-auth-code');
+    authCodeForm.value = code;
+  }
+  
+  function step5(authCode, clientId, clientSecret) {
+    var getRefreshTokenUri = 'https://www.googleapis.com/oauth2/v4/token';
+    
+    var whenRequestFinished = new Promise(resolve => {
+      var xhr = new XMLHttpRequest();
+      xhr.responseType = 'json';
+      xhr.open("POST", getRefreshTokenUri, true);
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      xhr.onreadystatechange = function() {
+        if (this.readyState === XMLHttpRequest.DONE) {
+          resolve(this);
+        }
+      }
+      xhr.send(
+        `code=${authCode}&` +
+        `client_id=${clientId}&` +
+        `client_secret=${clientSecret}&` +
+        `redirect_uri=${REDIRECT_URI}&` +
+        `grant_type=authorization_code`);
+      addMessage('Sent request for refresh token.');
+    });
+    
+    whenRequestFinished
+      .then(
+        function(xhr) {
+          console.log(xhr);
+          if (xhr.status === 200) {
+            var response = xhr.response;
+            if (response.refresh_token !== undefined) {
+              addMessage(`Successfully retrieved refresh token: ${response.refresh_token}`);
+            } else {
+              addMessage('Refresh token was not sent. Response: ' + Object.entries(response));
+            }
+          } else {
+            addMessage(`Failed refresh token retrieval. readyState=${xhr.readyState}, status=${xhr.status}`);
+          }
+        });
+  }
+  
+  // For now, assumes 1 root. If we search multiple 'places', then there could be multiple roots.
+  function listAllDriveDirectories(filesSoFar, accessToken, nextPageToken) {
+    var whenListingAvailable = new Promise(resolve => {
+      // List drive directories
+      var pageToken = '';
+      if (nextPageToken === undefined) {
+        addMessage('Requesting Drive listing.');
+      } else {
+        pageToken = `pageToken=${nextPageToken}&`;
+        addMessage('Requesting next page of Drive listing.');
+      }
+      var listUri = 'https://www.googleapis.com/drive/v3/files?';
+      listUri += pageToken +
+        `access_token=${accessToken}&` +
+        `fields=nextPageToken,files(id,name,parents)&` +
+        `q=${encodeURIComponent("mimeType='application/vnd.google-apps.folder'")}`
+      var xhr = new XMLHttpRequest();
+      xhr.responseType = 'json';
+      xhr.open("GET", listUri, true);
+      //xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      xhr.onreadystatechange = function() {
+        if (this.readyState === XMLHttpRequest.DONE) {
+          resolve(this);
+        }
+      };
+      xhr.send();
+    });
+    
+    return whenListingAvailable
+      .then(
+        function(xhr) {
+          var response = xhr.response;
+          filesSoFar.push(...response.files);
+          if (response.nextPageToken !== undefined) {
+            return listAllDriveDirectories(filesSoFar, accessToken, response.nextPageToken);
+          } else {
+            return Promise.resolve(filesSoFar);
+          }
+        });
+    
+  }
+  
+  function setupButtons() {
+    // Setup form handlers.
+    document.getElementById('form-list-dirs-button').onclick = function() {
+      var clientId = document.getElementById('form-client-id').value;
+      var clientSecret = document.getElementById('form-client-secret').value;
+      var refreshToken = document.getElementById('form-refresh-token').value;
+      if (clientId === '' || clientSecret === '' || refreshToken == '') {
+        addMessage('client id, client secret, and refresh token must be set before listing directories.');
+        return false;
+      }
+      
+      // TODO: get access token, then list directories.
+      // Get access token.
+      var whenAccessTokenAvailable = new Promise(resolve => {
+        var refreshAccessTokenUri = 'https://www.googleapis.com/oauth2/v4/token';
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = 'json';
+        xhr.open("POST", refreshAccessTokenUri, true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function() {
+          if (this.readyState === XMLHttpRequest.DONE) {
+            resolve(this);
+          }
+        };
+        xhr.send(
+          `client_id=${clientId}&` +
+          `client_secret=${clientSecret}&` +
+          `refresh_token=${refreshToken}&` +
+          `grant_type=refresh_token`);
+        addMessage('Sent request to refresh access token..');
+      });
+      
+      whenAccessTokenAvailable
+        .then(
+          function(xhr) {
+            console.log(xhr);
+            if (xhr.status === 200) {
+              var response = xhr.response;
+              if (response.access_token !== undefined) {
+                addMessage(`Successfully refreshed access token: ${response.access_token}`);
+              } else {
+                throw 'Refresh token was not sent. Response: ' + Object.entries(response);
+              }
+            } else {
+              throw `Failed to refresh access token. readyState=${xhr.readyState}, status=${xhr.status}`;
+            }
+            
+            return listAllDriveDirectories([], response.access_token);
+          })
+        .then(
+          function(files) {
+            // Clear previous listing.
+            var listingContainer = document.getElementById('listing-container');
+            while (listingContainer.firstChild) {
+              listingContainer.removeChild(listingContainer.firstChild);
+            }
+
+            if (files.size === 0) {
+              // No-op.
+              return;
+            }
+            
+            var idToChildrenIds = new Map();
+            var idToFile = new Map();
+            files.forEach(file => {
+              file.parents.forEach(parentId => {
+                if (!idToChildrenIds.has(parentId)) {
+                  idToChildrenIds.set(parentId, []);
+                }
+                idToChildrenIds.get(parentId).push(file.id);
+              });
+              idToFile.set(file.id, file);
+            });
+            
+            // Find root by picking any child, then climb up.
+            var fileId = idToFile.entries().next().value[0];
+            while (idToFile.has(fileId)) {
+              // Just follow first parent.
+              fileId = idToFile.get(fileId).parents[0];
+            }
+            var rootId = fileId;
+            
+            // Render
+            renderListing(idToChildrenIds, idToFile, rootId, 0, listingContainer);
+            addMessage('Rendered drive listing.');
+          });
+      return false;
+    };
+  }
+  
+  // On page load:
+  document.addEventListener('DOMContentLoaded',function() {
+    setupButtons();
+  }, false);
+  
+  function renderListing(idToChildrenIds, idToFile, fileId, depth, listingContainer) {
+    // Render self.
+    var filename;
+    if (!idToFile.has(fileId)) {
+      filename = 'root';
+    } else {
+      filename = idToFile.get(fileId).name;
+    }
+    var entry = document.createElement('div');
+    entry.className = 'listing-entry';
+    entry.style = `margin-left:${depth * 2}vw`;
+    
+    entry.innerHTML = `${filename} ( ${fileId} )`;
+    listingContainer.appendChild(entry);
+    
+    if (!idToChildrenIds.has(fileId)) {
+      return;
+    }
+    // Sort children.
+    var childrenIds = idToChildrenIds.get(fileId);
+    childrenIds.sort((a, b) => idToFile.get(a).name.localeCompare(idToFile.get(b).name));
+    
+    // Render children.
+    childrenIds.forEach(childId => renderListing(idToChildrenIds, idToFile, childId, depth+1, listingContainer));
+  }
+
+  
+  function addMessage(message) {
+    var date = new Date(Date.now());
+    var messagesContainer = document.getElementById('messages-container');
+    messagesContainer.innerHTML = `${date}: ${message}<br>` + messagesContainer.innerHTML;
+  }
+  
+</script>
+</head>
+<body>
+  <div>
+    How to list Drive directories and their file IDs:<br>
+    Step 1: Fill in your client id, client_secret, and refresh_token.<br>
+    Step 2: Click "List directories".<br>
+    Step 3: Your directory structure will appear.<br>
+    <br>
+  </div>
+  <form method="get">
+    <div class="form">
+      <label class="form-text" for="form-client-id">client id</label>
+      <input id="form-client-id" type="text" name="client_id">
+    </div>
+    <div class="form">
+      <label class="form-text" for="form-client-secret">client secret</label>
+      <input id="form-client-secret" type="text" name="client_secret">
+    </div>
+    <div class="form">
+      <label class="form-text" for="form-refresh-token">refresh token</label>
+      <input id="form-refresh-token" type="text" name="refresh_token">
+    </div>
+    <input class="form-text" id="form-list-dirs-button" type="submit" value="List directories">
+  </form>
+  <br>
+  <div id="listing-container">
+  </div>
+  <br>
+  <div id='messages-container'></div>
+</body>
+</html>
