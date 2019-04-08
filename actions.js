@@ -266,16 +266,10 @@ function goToSharingLinkResult() {
     }
     const uriBase = window.location.href.substring(0, hashQueryStart);
 
-    const sanitizeFilename = (filename) => encodeURIComponent(
-      [...filename]
-        .map(ch => ch === '.' ? '-' : ch) // Exceptions.
-        .join(''));
-    const alias = sanitizeFilename(shotData.filename) + '-' + uuidv4();
-    const predictedTinyUrl = `https://tinyurl.com/${alias}`;
-
-    const uriBeforeShortening = uriBase + `#/public/binary/${encodeURIComponent(predictedTinyUrl)}/${shotDataReadyForUri}`;
-
-    const requestUrl = `https://tinyurl.com/create.php?alias=${alias}`; // api-create.php does not support parameter 'alias'.
+    // Note: Only works for github pages. Will not work on URLs at host localhost for example.
+    // const longUrl = uriBase + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
+    const longUrl = "https://mjtozaki.github.io/shots/" + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
+    const requestUrl = 'https://git.io/create';
     
     // From https://stackoverflow.com/a/133997
     let form = document.createElement("form");
@@ -286,8 +280,15 @@ function goToSharingLinkResult() {
     let urlField = document.createElement('input');
     urlField.setAttribute('type', 'hidden');
     urlField.setAttribute('name', 'url');
-    urlField.setAttribute('value', uriBeforeShortening);
+    urlField.setAttribute('value', longUrl);
     form.appendChild(urlField);
+
+    // code field does not work anymore.
+    // let codeField = document.createElement('input');
+    // codeField.setAttribute('type', 'hidden');
+    // codeField.setAttribute('name', 'code');
+    // codeField.setAttribute('value', alias);
+    // form.appendChild(codeField);
     
     document.body.appendChild(form);
     form.submit(); // Adios.
