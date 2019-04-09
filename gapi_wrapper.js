@@ -410,20 +410,26 @@ class _GapiWrapper {
     // We will only respect the first parent of each file.
     var parents = new Set(
       files
-        .map(file => file.parents[0]));
+        .flatMap(file => {
+          if (file.parents !== undefined) {
+            return [file.parents[0]];
+          }
+          return [];
+        }));
     // Get paths for the parents.
     var parentsById = await this._getDirectoryPaths(parents);
     
+    const nullParent = {id: 'unknown', path: 'no_parents'};
     var filesWithPaths = files.map(file => {
       var fileWithPath = {
         id: file.id,
         name: file.name,
-        parent: parentsById.get(file.parents[0]),
+        parent: file.parents !== undefined ? parentsById.get(file.parents[0]) : nullParent,
       };
       return fileWithPath;
     });
     
-    return [filesWithPaths, response.nextPageToken];
+    return [filesWithPaths, response.result.nextPageToken];
   }
 
   _makeCacheKeyForGetFileContents(fileId) {

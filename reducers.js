@@ -2,7 +2,10 @@
 
 (function(ns = window) {
   
-  const auth = (state = {}, action) => {
+  const auth = (state = {
+    checking: false,
+    valid: undefined,
+  }, action) => {
     switch (action.type) {
       case applyAuth.toString(): {
         return {
@@ -13,12 +16,102 @@
         };
       }
       
+      case checkingAuth.toString(): {
+        return {
+          ...state,
+          checking: true,
+          valid: undefined,
+        };
+      }
+      
+      case confirmAuthValidity.toString(): {
+        return {
+          ...state,
+          checking: false,
+          valid: action.payload,
+        };
+      }
+      
       case purgeAuth.toString(): {
         return {
           ...state,
           clientId: undefined,
           clientSecret: undefined,
           refreshToken: undefined,
+          valid: undefined,
+        };
+      }
+      
+      default: {
+        return state;
+      }
+    }
+  };
+  
+  const diag = (state = {
+    running: false,
+    done: false,
+  }, action) => {
+    switch (action.type) {
+      case runningDiagnostics.toString(): {
+        return {
+          ...state,
+          running: true,
+        };
+      }
+      
+      case finishedDiagnostics.toString(): {
+        return {
+          ...state,
+          running: false,
+          done: true,
+        };
+      }
+      
+      case reportDiagnosticDriveRootGettable.toString(): {
+        return {
+          ...state,
+          gotDriveRoot: action.payload,
+        };
+      }
+      
+      case reportDiagnosticDriveAllFilesCount.toString(): {
+        return {
+          ...state,
+          allFilesCount: action.payload,
+        };
+      }
+      
+      case reportDiagnosticDriveAllShotsCount.toString(): {
+        return {
+          ...state,
+          allShotsCount: action.payload,
+        };
+      }
+      
+      case reportDiagnosticDriveAllValidShotsCount.toString(): {
+        return {
+          ...state,
+          validShotsCount: action.payload,
+        };
+      }
+      
+      case reportDiagnosticDriveAllInvalidShotsCount.toString(): {
+        return {
+          ...state,
+          invalidShotsCount: action.payload,
+        }; 
+      }
+      
+      case refreshDiagnostics.toString(): {
+        return {
+          ...state,
+          gotDriveRoot: undefined,
+          allFilesCount: undefined,
+          allShotsCount: undefined,
+          validShotsCount: undefined,
+          invalidShotsCount: undefined,
+          done: false,
         };
       }
       
@@ -136,6 +229,7 @@
 
   ns.rootReducer = combineReducers({
     auth,
+    diag,
     filter,
     form,
     options,

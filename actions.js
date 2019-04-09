@@ -2,10 +2,12 @@
 
 // Auth.
 const applyAuth = createAction("APPLY_AUTH");
+const checkingAuth = createAction("CHECKING_AUTH");
+const confirmAuthValidity = createAction("CONFIRM_AUTH_VALIDITY");
 const purgeAuth = createAction("PURGE_AUTH");
 
 function setAuth(clientId, clientSecret, refreshToken) {
-  return (dispatch, getState, apis) => {
+  return async (dispatch, getState, apis) => {
     apis.shotStorage.setClientId(clientId);
     apis.shotStorage.setClientSecret(clientSecret);
     apis.shotStorage.setRefreshToken(refreshToken);
@@ -29,6 +31,11 @@ function setAuth(clientId, clientSecret, refreshToken) {
     } catch (e) {
       console.log("Error when writing to localStorage: " + e);
     }
+    
+    dispatch(checkingAuth());
+    // TODO: timeout after 10s
+    const authValid = await apis.shotStorage.isAuthValid();
+    dispatch(confirmAuthValidity(authValid));
   };
 }
 
@@ -293,3 +300,55 @@ function goToSharingLinkResult() {
     form.submit(); // Adios.
   };
 }
+
+
+// Diagnostics
+const refreshDiagnostics = createAction("REFRESH_DIAGNOSTICS");
+const runningDiagnostics = createAction("RUNNING_DIAGNOSTICS");
+const finishedDiagnostics = createAction("FINISHED_DIAGNOSTICS");
+const reportDiagnosticDriveRootGettable = createAction("REPORT_DIAGNOSTIC_DRIVE_ROOT_GETTABLE");
+const reportDiagnosticDriveAllFilesCount = createAction("REPORT_DIAGNOSTIC_DRIVE_ALL_FILES_COUNT");
+const reportDiagnosticDriveAllShotsCount = createAction("REPORT_DIAGNOSTIC_DRIVE_ALL_SHOTS_COUNT");
+const reportDiagnosticDriveAllValidShotsCount = createAction("REPORT_DIAGNOSTIC_DRIVE_ALL_VALID_SHOTS_COUNT");
+const reportDiagnosticDriveAllInvalidShotsCount = createAction("REPORT_DIAGNOSTIC_DRIVE_ALL_INVALID_SHOTS_COUNT");
+
+
+function launchDiagnostics() {
+  return async (dispatch, getState, apis) => {
+    dispatch(runningDiagnostics());
+    
+    const authValid = await apis.shotStorage.isAuthValid();
+    if (authValid === false) {
+      dispatch(finishedDiagnostics());
+      return;
+    }
+    let gapiWrapper = apis.shotStorage.getGapiWrapperForDiagnostics()
+    // Drive get root.
+    const root = await gapiWrapper.getFile('root');
+    const rootGotten = root.id !== undefined || root.name !== undefined;
+    dispatch(reportDiagnosticDriveRootGettable(rootGotten));
+    // Drive total file count.
+    const keepGettingFiles = async (pageToken) => {
+      const [files, nextPageToken]= await gapiWrapper.listFiles('', 'name desc', 1000, pageToken);
+      if (nextPageToken === undefined) {
+        return files;
+      } else {
+        return files.concat(await keepGettingFiles(nextPageToken));
+      }
+    };
+    const allFiles = await keepGettingFiles();
+    dispatch(reportDiagnosticDriveAllFilesCount(allFiles.length));
+    // Drive total files with .shot extension.
+    const allShotFiles = allFiles.filter(file => file.name.endsWith('.shot'));
+    dispatch(reportDiagnosticDriveAllShotsCount(allShotFiles.length));
+    // Drive total valid shot file count.
+    const [allValidShotFiles] = await apis.shotStorage.listShots({}, {numResults: allFiles.length});
+    dispatch(reportDiagnosticDriveAllValidShotsCount(allValidShotFiles.length));
+    // Drive invalid named shot file count.
+    const invalidShotFileNameCount = allShotFiles.length - allValidShotFiles.length;
+    dispatch(reportDiagnosticDriveAllInvalidShotsCount(invalidShotFileNameCount));
+    
+    dispatch(finishedDiagnostics());
+  };
+}
+

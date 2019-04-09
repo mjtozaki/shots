@@ -30,6 +30,7 @@ class ShotsMenu extends React.Component {
       children.push(
         div([
           h(Link, '.option-item', {to: '/auth'}, 'Auth settings'),
+          h(Link, '.option-item', {to: '/diagnostics'}, 'Diagnostics'),
         ]),
       );
     }

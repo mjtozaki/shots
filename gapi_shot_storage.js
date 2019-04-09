@@ -1,4 +1,4 @@
-'use static';
+'use strict';
 
 class GapiShotStorage {
   /**
@@ -14,6 +14,10 @@ class GapiShotStorage {
     this._gapiWrapper = gapiWrapper;
     this._shotCodec = shotCodec;
     this._continuations = new Map();
+  }
+  
+  getGapiWrapperForDiagnostics() {
+    return this._gapiWrapper;
   }
   
   setClientId(clientId) {
