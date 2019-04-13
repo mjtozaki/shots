@@ -28,15 +28,31 @@ class AuthSettings extends React.Component {
     
     let children = [];
     children.push(
-      form({onSubmit: handleSubmit}, [
-        h(Field, {name: 'clientId', label: 'Client ID', component: renderField, type: 'text', validate: required}),
-        h(Field, {name: 'clientSecret', label: 'Client Secret', component: renderField, type: 'text', validate: required}),
-        h(Field, {name: 'refreshToken', label: 'Refresh Token', component: renderField, type: 'text', validate: required}),
-        div([
-          button({type: 'submit', disabled: submitting}, "Set"),
-        ]),
+      form({onSubmit: handleSubmit, key: 'form'}, [
+        h(Field, {
+          name: 'clientId',
+          label: 'Client ID',
+          component: renderField,
+          key: 'clientId',
+          type: 'text',
+          validate: required}),
+        h(Field, {
+          name: 'clientSecret',
+          label: 'Client Secret',
+          component: renderField,
+          key: 'clientSecret',
+          type: 'text',
+          validate: required}),
+        h(Field, {
+          name: 'refreshToken',
+          label: 'Refresh Token',
+          component: renderField,
+          key: 'refreshToken',
+          type: 'text',
+          validate: required}),
+        button({type: 'submit', disabled: submitting, key: 'submit'}, "Set"),
       ]),
-      button({onClick: onPurge}, 'Purge Auth'),
+      button({onClick: onPurge, key: 'purge'}, 'Purge Auth'),
     );
 
     return children;

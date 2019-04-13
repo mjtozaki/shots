@@ -4,30 +4,46 @@
   // Top-level component for Shots app.
   class ShotsApp extends React.Component {
     render() {
-      var children = [];    
-      // Redirect route
-      children.push(
-        h(Route, {path: '/redirect/from/personal/:provider/:shotId/:relativeIndex', component: RedirectRelativeFromPersonal}),
-        h(Route, {path: '/redirect/index/personal/:provider/:index', component: RedirectWithAbsoluteIndex}),
-        h(Route, {path: '/redirect/yesterday', component: RedirectYesterday}),
-        );
-      
-      children.push(
-        h(ShotsMenu));
-        
-      children.push(
-        h(Route, {path: '/auth', component: RoutedAuthSettings}));
-      
-      children.push(
-        h(Route, {exact: true, path: '/', component: RoutedShotsList}));
-        
-      children.push(
-        h(Route, {path: '/personal/:provider/:shotId', component: RoutedSingleShotView}));
-        
-      // BYO version of single shot view.
-      children.push(
-        h(Route, {path: '/public/binary/:shortUrl/:serializedShot', component: RoutedByoSingleShotView}));
-      
+      var children = [
+        // Redirects.
+        h(Route, {
+          path: '/redirect/from/personal/:provider/:shotId/:relativeIndex',
+          component: RedirectRelativeFromPersonal,
+          key: 'RedirectRelativeFromPersonal'}),
+        h(Route, {
+          path: '/redirect/index/personal/:provider/:index',
+          component: RedirectWithAbsoluteIndex,
+          key: 'RedirectWithAbsoluteIndex'}),
+        h(Route, {
+          path: '/redirect/yesterday',
+          component: RedirectYesterday,
+          key: 'RedirectYesterday'}),
+        // Menu bar.
+        h(ShotsMenu, {key: 'ShotsMenu'}),
+        // Routing for pages.
+        h(Route, {
+          exact: true,
+          path: '/',
+          component: RoutedShotsList,
+          key: 'RoutedShotsList'}),
+        h(Route, {
+          path: '/auth',
+          component: RoutedAuthSettings,
+          key: 'RoutedAuthSettings'}),
+        h(Route, {
+          path: '/diagnostics',
+          component: Diagnostics,
+          key: 'Diagnostics'}),
+        h(Route, {
+          path: '/personal/:provider/:shotId',
+          component: RoutedSingleShotView,
+          key: 'RoutedSingleShotView'}),
+        h(Route, {
+          path: '/public/binary/:shortUrl/:serializedShot',
+          component: RoutedByoSingleShotView,
+          key: 'RoutedByoSingleShotView'}),
+      ];
+
       return children;
     }
   }

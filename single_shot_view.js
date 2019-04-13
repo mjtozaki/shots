@@ -11,6 +11,7 @@ class SingleShotView extends React.Component {
     children.push(
       h(SingleShotGraph, {
         shotData: this.props.shot,
+        key: 'SingleShotGraph',
       }));
     
     if (!this.props.byo) {
@@ -39,6 +40,8 @@ class SingleShotGraph extends React.Component {
     if (shotData === undefined || shotData.lastFetched === undefined) {
       return [];
     }
+    const weightPresent = shotData.flowWeight.some(value => value != 0);
+    const flowAxisTitle = 'Flow (mL/s)' + (weightPresent ? ' or Weight (g/s)' : '');
     var pressure = {
       x: shotData.elapsed,
       y: shotData.pressure,
@@ -58,6 +61,16 @@ class SingleShotGraph extends React.Component {
       },
       yaxis: 'y2'
     };
+    var flowWeight = {
+      x: shotData.elapsed,
+      y: shotData.flowWeight,
+      mode: 'lines',
+      name: 'Flow weight',
+      line: {
+        color: 'brown',
+      },
+      yaxis: 'y2',
+    };
     var temperatureBasket = {
       x: shotData.elapsed,
       y: shotData.temperatureBasket,
@@ -68,21 +81,6 @@ class SingleShotGraph extends React.Component {
       },
       yaxis: 'y3'
     };
-
-    // Pressure and flow ranges match DE app defaults.
-    var pressureRange = [0, 12];
-    var flowRange = [0, 6];
-    
-    // Align temperature domain such that temperature target is centered.
-    var center =
-        shotData.temperatureTarget.reduce(
-          (accumulator, currentValue) => accumulator + currentValue)
-        / shotData.temperatureTarget.length;
-    var maxDifference = [...Array(shotData.elapsed.length).keys()]
-        .map(
-          (index) => Math.max(Math.abs(shotData.temperatureTarget[index] - center), Math.abs(shotData.temperatureBasket[index] - center)))
-        .reduce((accumulator, currentValue) => Math.max(accumulator, currentValue), 0);
-    var temperatureRange = [center - maxDifference, center + maxDifference];
     var temperatureTarget = {
       x: shotData.elapsed,
       y: shotData.temperatureTarget,
@@ -94,8 +92,16 @@ class SingleShotGraph extends React.Component {
       },
       yaxis: 'y3'
     };
+
+    // Pressure and flow ranges match DE app defaults.
+    var pressureRange = [0, 12];
+    var flowRange = [0, 6];
+    const temperatureRange = [80, 98];
       
     var data = [pressure, flow, temperatureBasket, temperatureTarget];
+    if (weightPresent) {
+      data.push(flowWeight);
+    }
     var layout = {
       titlefont: {
         family: 'Roboto',
@@ -115,7 +121,7 @@ class SingleShotGraph extends React.Component {
         range: pressureRange,
       },
       yaxis2: {
-        title: 'Flow (mL/s)',
+        title: flowAxisTitle,
         titlefont: {color: 'blue'},
         tickfont: {color: 'blue'},
         anchor: 'x',

@@ -30,6 +30,7 @@ class ShotsList extends React.Component {
         ({shotId, dailyCount}) => h(ShotsListEntry, {
           dailyCount: dailyCount,
           shot: this.props.shots.db[shotId],
+          key: shotId,
         }));
     return children;
   }

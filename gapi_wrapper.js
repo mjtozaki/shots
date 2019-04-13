@@ -139,6 +139,7 @@ class _GapiWrapper {
     this.acquiringRefreshToken = null;
     this.whenAuthed = null;
     this.whenClientAndAuthLoaded = null;
+    this.apiQueryCount = 0;
     const CACHE_DURATION = 1 * 60 * 1000; // Minutes.
     this.rpcCache = new _TimedCache({
       categories: [
@@ -158,6 +159,10 @@ class _GapiWrapper {
         },
       ],
     }, CACHE_DURATION);
+  }
+  
+  getApiQueryCount() {
+    return this.apiQueryCount;
   }
   
   ensureClientAndAuthLoaded() {
@@ -207,6 +212,7 @@ class _GapiWrapper {
         `client_secret=${clientSecret}&` +
         `refresh_token=${refreshToken}&` +
         `grant_type=refresh_token`);
+      ++this.apiQueryCount;
     })
       .then(xhr => {
         if (xhr.status === 200) {
@@ -258,6 +264,7 @@ class _GapiWrapper {
   
   async getFile(fileId) {
     // TODO: cache.
+    ++this.apiQueryCount;
     let response = await gapi.client.request({
       path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
       params: {
@@ -319,6 +326,7 @@ class _GapiWrapper {
           {
             id: parentId,
           });
+        ++this.apiQueryCount;
       });
       // Remove the current query parents from the queue.
       parentIds.clear();
@@ -384,6 +392,7 @@ class _GapiWrapper {
       // TODO: protect from modification by client.
       response = cached;
     } else {
+      ++this.apiQueryCount;
       response = await gapi.client.request({
         path: 'https://www.googleapis.com/drive/v3/files',
         params: {
@@ -410,20 +419,26 @@ class _GapiWrapper {
     // We will only respect the first parent of each file.
     var parents = new Set(
       files
-        .map(file => file.parents[0]));
+        .flatMap(file => {
+          if (file.parents !== undefined) {
+            return [file.parents[0]];
+          }
+          return [];
+        }));
     // Get paths for the parents.
     var parentsById = await this._getDirectoryPaths(parents);
     
+    const nullParent = {id: 'unknown', path: 'no_parents'};
     var filesWithPaths = files.map(file => {
       var fileWithPath = {
         id: file.id,
         name: file.name,
-        parent: parentsById.get(file.parents[0]),
+        parent: file.parents !== undefined ? parentsById.get(file.parents[0]) : nullParent,
       };
       return fileWithPath;
     });
     
-    return [filesWithPaths, response.nextPageToken];
+    return [filesWithPaths, response.result.nextPageToken];
   }
 
   _makeCacheKeyForGetFileContents(fileId) {
@@ -443,6 +458,7 @@ class _GapiWrapper {
       return cached;
     }
     
+    ++this.apiQueryCount;
     var response = await gapi.client.request({
       'path': 'https://www.googleapis.com/drive/v3/files/' + fileId,
       'params': {
@@ -467,6 +483,7 @@ class _GapiWrapper {
    * values should be a two-dimensional area representing rows of columns of cells.
    */
   setSheetValues(spreadsheetId, range, values) {
+    ++this.apiQueryCount;
     return gapi.client.request({
       'path': `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
       'params': {
@@ -496,6 +513,7 @@ class _GapiWrapper {
    * values should be a two-dimensional area representing rows of columns of cells.
    */
   appendSheetValues(spreadsheetId, range, values) {
+    ++this.apiQueryCount;
     return gapi.client.request({
       'path': `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append`,
       'params': {
