@@ -44,7 +44,6 @@ class ShotCodec {
       filename: shotFile.name,
       parentPath: shotFile.parent.path,
     };
-    console.log(shotData);
     return shotData;
   }
 }

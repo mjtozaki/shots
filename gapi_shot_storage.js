@@ -80,7 +80,7 @@ class GapiShotStorage {
         // Exact file datetime.
         var result = GapiShotStorage.SHOTFILE_DATETIME_PATTERN.exec(file.name);
         if (result === null) {
-          console.log(`Failed to find datetime of shot file ${file.name} (${file.fileId}).`);
+          console.log(`Failed to find datetime of shot file ${file.name} (${file.id}).`);
           return [];
         }
         var datetime = new Date(result[1], result[2]-1, result[3], result[4], result[5], result[6]);
