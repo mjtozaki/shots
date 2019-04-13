@@ -148,6 +148,17 @@ class TclTokenizer {
         ++depth;
       } else if (ch === '}') {
         --depth;
+      } else if (ch.codePointAt(0) > 127) {
+        // Non-ascii character.
+        if (this.pos + 1 < this.str.length) {
+          const lookahead = this.str.charAt(this.pos+1);
+          if (lookahead === '\n' || lookahead === '\r') {
+            // If a non-ascii character is followed by a newline, we assume that the file was corrupted
+            // due to Drive interpreting our file as UTF-8 and merging a binary character with a '}'.
+            // So process as a '}'.
+            --depth;
+          }
+        }
       }
       ++this.pos;
     } while (this.pos < this.str.length && depth != 0);
