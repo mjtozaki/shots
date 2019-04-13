@@ -17,13 +17,13 @@ class SingleShotView extends React.Component {
     if (!this.props.byo) {
       // Data from shot storage. Allow sharing.
       // Turning off sharing until the implementation is solved.
-      // children.push(
-        // h(ShotSharingWidget));
+      children.push(
+        h(ShotSharingWidget, {key: 'ShotSharingWidget'}));
     } else {
       // Bring your own data. Show link instead.
       children.push(
-        h3('.normal-text', 'Share link: '),
-        h3('.normal-link', decodeURIComponent(this.props.match.params.shortUrl)),
+        h3('.normal-text', {key: 'label'}, 'Share link: '),
+        h3('.normal-link', {key: 'link'}, decodeURIComponent(this.props.match.params.shortUrl)),
       );
     }
     // TODO: metadata

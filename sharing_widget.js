@@ -7,7 +7,9 @@ class ShotSharingWidget extends React.Component {
   render() {
     let children = [];
     children.push(
-      button({onClick: this.props.goToSharingLinkResult}, 'Get sharing link from tinyurl'));
+      button({
+        onClick: this.props.goToSharingLinkResult,
+        key: 'button'}, 'Share (make link by appended result to "git.io/")'));
     
     // Shelved until we can do an asynchronous fetch of the sharing link.
     // if (this.props.shotSharingLinkGetSuccess === true) {
