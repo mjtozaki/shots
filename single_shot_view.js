@@ -11,6 +11,7 @@ class SingleShotView extends React.Component {
     children.push(
       h(SingleShotGraph, {
         shotData: this.props.shot,
+        key: 'SingleShotGraph',
       }));
     
     if (!this.props.byo) {

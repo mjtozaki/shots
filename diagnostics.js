@@ -16,7 +16,7 @@ class Diagnostics extends React.Component {
       {label: 'diagnostics version', value: diagVersion},
       {label: 'time of initial page load', value: new Date(initialLoadTime).toISOString()},
       {label: 'time of diagnostics render', value: new Date().toISOString()},
-      {label: 'diagnostics running', value: props.running ? 'yes' : 'no'},
+      {label: 'diagnostics done', value: props.running ? 'no' : 'yes'},
       {label: 'useragent', value: window.navigator.userAgent},
       {label: 'platform', value: window.navigator.platform},
       {label: 'oscpu', value: window.navigator.oscpu},
@@ -37,8 +37,12 @@ class Diagnostics extends React.Component {
       .map(diag => `${diag.label}: ${diag.value}`)
       .join('\n');
     return [
-      textarea({style: {width: '95vw', height: '95vh'}, value: diagsText}),
-      button({onSubmit: this.props.refresh}, 'Refresh'),
+      textarea({
+        style: {width: '95vw', height: '95vh'},
+        readOnly: true,
+        value: diagsText,
+        key: 'textarea'}),
+      button({onSubmit: this.props.refresh, key: 'refresh'}, 'Refresh'),
     ];
   }
 }
