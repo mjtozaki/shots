@@ -45,6 +45,9 @@ const Field = window.ReduxForm.Field;
 // Plotly.
 const Plot = createPlotlyComponent(Plotly);
 
+// react-copy-to-clipboard.
+// const CopyToClipboard
+
 // From https://stackoverflow.com/a/2117523
 function uuidv4() {
   return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>

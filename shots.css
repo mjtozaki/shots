@@ -51,6 +51,10 @@ a {
   text-decoration: none;
 }
 
+.copied-label {
+  color: red;
+}
+
 .form-text {
   font-family: 'Roboto', sans-serif;
   font-weight: 300;
