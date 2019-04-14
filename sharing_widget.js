@@ -8,45 +8,28 @@ class ShotSharingWidget extends React.Component {
     let children = [];
     children.push(
       button({
-        onClick: () => this.props.fetchSharingLink(this.props.shot),
-        disabled: this.props.sharing.fetching || this.props.sharing.available,
-        key: 'button'}, 'Share'));
+        onClick: this.props.goToSharingLinkResult,
+        key: 'button'}, 'Share (make link by appended result to "git.io/")'));
     
-    if (this.props.sharing.fetching === true) {
-      children.push(
-        h2({key: 'fetching'}, "Generating."));
+    // Shelved until we can do an asynchronous fetch of the sharing link.
+    // if (this.props.shotSharingLinkGetSuccess === true) {
+      // children.push(
+        // // TODO: make this prettier.
+        // h2(this.props.shotSharingLink));
 
-    } else if (this.props.sharing.available === true) {
-      if (this.props.sharing.error !== undefined) {
-        children.push(h2({key: 'error'}, "Could not get a sharing link. Refresh and try again."));
-      } else {
-        children.push(
-          // TODO: make this prettier.
-          h(CopyToClipboard, {
-            onCopy: this.props.copiedSharingLink,
-            text: this.props.sharing.link,
-            key: 'CopyToClipboard',
-          }, [
-            h2({key: 'link'}, this.props.sharing.link),
-          ]));
-        if (this.props.sharing.copied) {
-          children.push(
-            h3('.copied-label', {key: 'copiedLabel'}, 'Copied!'));
-        }
-      }
-    }
+    // } else if (this.props.shotSharingLinkGetSuccess === false) {
+      // children.push(h2("Could not get a sharing link. Refresh and try again."));
+    // }
     return children;
   }
 }
 
 // Props.
 const mapStateToProps = state => ({
-  sharing: state.sharing,
   shot: state.shot,
 });
 const mapDispatchToProps = (dispatch, ownProps) => ({
-  copiedSharingLink: () => dispatch(copiedSharingLink()),
-  fetchSharingLink: shot => dispatch(fetchSharingLink(shot)),
+  goToSharingLinkResult: () => dispatch(goToSharingLinkResult()),
 });
 
 // Exports.

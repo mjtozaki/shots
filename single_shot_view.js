@@ -20,13 +20,11 @@ class SingleShotView extends React.Component {
       children.push(
         h(ShotSharingWidget, {key: 'ShotSharingWidget'}));
     } else {
-      // Bring your own data. Show link instead, unless we don't know the source.
-      if (this.props.match.params.shortUrl !== 'unknown_source') {
-        children.push(
-          h3('.normal-text', {key: 'label'}, 'Share link: '),
-          h3('.normal-link', {key: 'link'}, decodeURIComponent(this.props.match.params.shortUrl)),
-        );
-      }
+      // Bring your own data. Show link instead.
+      children.push(
+        h3('.normal-text', {key: 'label'}, 'Share link: '),
+        h3('.normal-link', {key: 'link'}, decodeURIComponent(this.props.match.params.shortUrl)),
+      );
     }
     // TODO: metadata
     return children;
