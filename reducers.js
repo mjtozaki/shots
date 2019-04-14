@@ -192,6 +192,7 @@
   const sharing = (state = {
     fetching: false,
     available: false,
+    copied: false,
   }, action) => {
     switch (action.type) {
       case requestSharingLink.toString(): {
@@ -205,8 +206,12 @@
         return {...state, link: action.payload, fetching: false, available: true};
       }
       
+      case copiedSharingLink.toString(): {
+        return {...state, copied: true};
+      }
+      
       case resetSharingLink.toString(): {
-        return {...state, available: false, link: undefined, error: undefined};
+        return {...state, available: false, link: undefined, error: undefined, copied: false};
       }
       
       default: {

@@ -22,7 +22,17 @@ class ShotSharingWidget extends React.Component {
       } else {
         children.push(
           // TODO: make this prettier.
-          h2({key: 'link'}, this.props.sharing.link));
+          h(CopyToClipboard, {
+            onCopy: this.props.copiedSharingLink,
+            text: this.props.sharing.link,
+            key: 'CopyToClipboard',
+          }, [
+            h2({key: 'link'}, this.props.sharing.link),
+          ]));
+        if (this.props.sharing.copied) {
+          children.push(
+            h3('.copied-label', {key: 'copiedLabel'}, 'Copied!'));
+        }
       }
     }
     return children;
@@ -35,6 +45,7 @@ const mapStateToProps = state => ({
   shot: state.shot,
 });
 const mapDispatchToProps = (dispatch, ownProps) => ({
+  copiedSharingLink: () => dispatch(copiedSharingLink()),
   fetchSharingLink: shot => dispatch(fetchSharingLink(shot)),
 });
 

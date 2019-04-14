@@ -265,6 +265,7 @@ function deserializeShot(serializedShot) {
 // Sharing.
 const requestSharingLink = createAction("REQUEST_SHARING_LINK");
 const receiveSharingLink = createAction("RECEIVE_SHARING_LINK");
+const copiedSharingLink = createAction("COPIED_SHARING_LINK");
 const resetSharingLink = createAction("RESET_SHARING_LINK");
 
 function fetchSharingLink(shotData) {
