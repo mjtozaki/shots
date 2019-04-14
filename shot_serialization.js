@@ -110,6 +110,11 @@ class ShotSerializer {
     let obj = JSON.parse(
         decodeURIComponent(
           escape(utf8String)));
+      
+    // Warts.
+    // Version 1.0 was released with a Date instance in shot.timestamp.
+    // Date is converted to a string upon serialization. We should turn it back into a Date.
+    obj.timestamp = new Date(obj.timestamp);
     return obj;
   }
 }
