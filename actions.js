@@ -238,8 +238,6 @@ function fetchShot(provider, shotId) {
       shot.id = shotId;
       shot.lastFetched = Date.now();
       dispatch(receiveShot(shot));
-      // Explictly separating actions since sharing link may be cached between page switches.
-      dispatch(resetSharingLink());
     } catch (e) {
       dispatch(receiveShot(e));
     }
@@ -263,53 +261,44 @@ function deserializeShot(serializedShot) {
 }
 
 // Sharing.
-const requestSharingLink = createAction("REQUEST_SHARING_LINK");
-const receiveSharingLink = createAction("RECEIVE_SHARING_LINK");
-const copiedSharingLink = createAction("COPIED_SHARING_LINK");
-const resetSharingLink = createAction("RESET_SHARING_LINK");
-
-function fetchSharingLink(shotData) {
-  return async (dispatch, getState, apis) => {
+function goToSharingLinkResult() {
+  return (dispatch, getState, apis) => {
+    const shotData = getState().shot;
     const shotDataReadyForUri = apis.shotSerializer.serializeForUri(shotData);
     
-    // // Get url up to hash
-    // let hashQueryStart = window.location.href.indexOf('#');
-    // if (hashQueryStart === -1) {
-      // hashQueryStart = window.location.href.length;
-    // }
-    // const uriBase = window.location.href.substring(0, hashQueryStart);
-    // const longUrl = uriBase + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
-
-    // Note: git.io shortener only works for github pages. Will not work on URLs at host localhost for example.
-    const longUrl = "https://mjtozaki.github.io/shots/" + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
-    const shorteningRequestUrl = 'https://git.io/create';
-    
-    // CORS proxy. Supports POST and payload <=100kB.
-    // See https://github.com/Freeboard/thingproxy
-    const corsPrefix = 'https://thingproxy.freeboard.io/fetch/';
-    const requestUrl = corsPrefix + shorteningRequestUrl;
-    
-    dispatch(requestSharingLink());
-
-    const xhr = await new Promise(resolve => {
-      let xhr = new XMLHttpRequest();
-      xhr.open("POST", requestUrl, true);
-      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-      xhr.onreadystatechange = function() {
-        if (this.readyState === XMLHttpRequest.DONE) {
-          resolve(this);
-        }
-      };
-      xhr.send(`url=${longUrl}`);
-    });
-    
-    if (xhr.status !== 200) {
-      dispatch(receiveSharingLink(new Error("bad status: " + xhr.status)));
-      return;
+    // Get url up to hash
+    let hashQueryStart = window.location.href.indexOf('#');
+    if (hashQueryStart === -1) {
+      hashQueryStart = window.location.href.length;
     }
+    const uriBase = window.location.href.substring(0, hashQueryStart);
+
+    // Note: Only works for github pages. Will not work on URLs at host localhost for example.
+    // const longUrl = uriBase + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
+    const longUrl = "https://mjtozaki.github.io/shots/" + `#/public/binary/unknown_source/${shotDataReadyForUri}`;
+    const requestUrl = 'https://git.io/create';
     
-    const shortenedUrl = 'https://git.io/' + xhr.response;
-    dispatch(receiveSharingLink(shortenedUrl));
+    // From https://stackoverflow.com/a/133997
+    let form = document.createElement("form");
+    form.setAttribute("method", 'POST');
+    form.setAttribute("action", requestUrl);
+    form.setAttribute('target', '_blank');
+
+    let urlField = document.createElement('input');
+    urlField.setAttribute('type', 'hidden');
+    urlField.setAttribute('name', 'url');
+    urlField.setAttribute('value', longUrl);
+    form.appendChild(urlField);
+
+    // code field does not work anymore.
+    // let codeField = document.createElement('input');
+    // codeField.setAttribute('type', 'hidden');
+    // codeField.setAttribute('name', 'code');
+    // codeField.setAttribute('value', alias);
+    // form.appendChild(codeField);
+    
+    document.body.appendChild(form);
+    form.submit(); // Adios.
   };
 }
 
