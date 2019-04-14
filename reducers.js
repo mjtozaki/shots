@@ -189,6 +189,32 @@
     }
   };
   
+  const sharing = (state = {
+    fetching: false,
+    available: false,
+  }, action) => {
+    switch (action.type) {
+      case requestSharingLink.toString(): {
+        return {...state, fetching: true}
+      }
+      
+      case receiveSharingLink.toString(): {
+        if (action.error) {
+          return {...state, error: action.payload, fetching: false, available: true};
+        }
+        return {...state, link: action.payload, fetching: false, available: true};
+      }
+      
+      case resetSharingLink.toString(): {
+        return {...state, available: false, link: undefined, error: undefined};
+      }
+      
+      default: {
+        return state;
+      }
+    }
+  };
+  
   const shot = (state = {}, action) => {
     switch (action.type) {
       case requestShot.toString(): {
@@ -234,6 +260,7 @@
     form,
     options,
     redirect,
+    sharing,
     shot,
     shots,
   });
