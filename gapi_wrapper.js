@@ -258,8 +258,8 @@ class _GapiWrapper {
     return `${this.activeClientId},${this.activeClientSecret},${this.activeRefreshToken},`;
   }
   
-  _makeCacheKeyForDir(fileId) {
-    return this._makeCacheKeyPrefixForAuth() + `dir,${fileId}`;
+  _makeCacheKeyForDirs() {
+    return this._makeCacheKeyPrefixForAuth() + `dirs`;
   }
   
   async getFile(fileId) {
@@ -299,64 +299,25 @@ class _GapiWrapper {
 
   
   async _getDirectoryPaths(requestedParentIds) {
-    // Copy to prevent modification of arg.
-    var parentIds = new Set(requestedParentIds);
-    
-    var directories = new Map();
-    parentIds.forEach(parentId => {
-      var cache = this.rpcCache.get(this._makeCacheKeyForDir(parentId));
-      if (cache !== null) {
-        directories.set(parentId, cache);
-        parentIds.delete(parentId);
-      }
-    });
-    
-    // Each look-up stage represents a level up the tree.
-    while (parentIds.size > 0) {
-      var batch = gapi.client.newBatch();
-      // Queue up queries for this parents at this depth.
-      parentIds.forEach(parentId => {
-        batch.add(
-          gapi.client.request({
-            'path': `https://www.googleapis.com/drive/v3/files/${parentId}`,
-            'params': {
-              'fields': 'name,parents',
-            },
-          }),
-          {
-            id: parentId,
-          });
-        ++this.apiQueryCount;
-      });
-      // Remove the current query parents from the queue.
-      parentIds.clear();
+    let directories;
+    var cache = this.rpcCache.get(this._makeCacheKeyForDirs());
+    if (cache !== null) {
+      directories = cache;
+    } else {
+      // Just do full directory lookup and cache. Batching uses too much quota.
+      directories = new Map();
 
-      var response = await batch;
-      if (response.error !== undefined) {
-        throw response.error.errors[0].message;
-      }
-      var idToFileMapping = response.result;
-      // Record files by fileId, and add the next level of parents.
-      Object.keys(idToFileMapping)
-        .forEach(fileId => {
-          var file = idToFileMapping[fileId].result;
-          directories.set(fileId, file);
-          this.rpcCache.set(this._makeCacheKeyForDir(fileId), file, 'dirs');
-          if (file.parents !== undefined && file.parents.length > 0) { // Root (e.g. "My Drive") has undefined parents.
-            parentIds.add(file.parents[0]);
-          }
-          /////////////////////
-          // var name = idToFileMapping[fileId].result.name;
-          // var cacheKey = this._makeNameForFileIdCacheKey(fileId);
-          // this.rpcCache.set(cacheKey, name);
-          // results.set(fileId, name);
-        });
-      // Ignore parentIds that were already looked-up.
-      parentIds.forEach(parentId => {
-        if (directories.has(parentId)) {
-          parentIds.delete(parentId);
-        }
-      }); 
+      const q = "mimeType='application/vnd.google-apps.folder'";
+      const orderBy = 'name desc';
+      const pageSize = 1000;
+      let nextPageToken;
+      do {
+        const results = await this._rawListFiles(q, orderBy, pageSize, nextPageToken);
+        results.files.forEach(file => directories.set(file.id, file));
+        nextPageToken = results.nextPageToken;
+      } while (nextPageToken !== undefined);
+      
+      this.rpcCache.set(this._makeCacheKeyForDirs(), directories, 'dirs');
     }
     
     // Construct the paths for the requested parents.
@@ -379,33 +340,20 @@ class _GapiWrapper {
     return result;
   }
   
-  _makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken) {
-    return this._makeCacheKeyPrefixForAuth() + `listFiles,${q},${orderBy},${pageSize},${pageToken}`;
-  }
-
-  async listFiles(q, orderBy, pageSize, pageToken) {
-    var response;
+  async _rawListFiles(q, orderBy, pageSize, pageToken) {
+    ++this.apiQueryCount;
+    const response = await gapi.client.request({
+      path: 'https://www.googleapis.com/drive/v3/files',
+      params: {
+        spaces: 'drive',
+        q: q,
+        fields: 'nextPageToken,files(id,name,parents)',
+        orderBy: orderBy,
+        pageSize: pageSize,
+        pageToken: pageToken,
+      },
+    });
     
-    var cacheKey = this._makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken);
-    var cached = this.rpcCache.get(cacheKey);
-    if (cached !== null) {
-      // TODO: protect from modification by client.
-      response = cached;
-    } else {
-      ++this.apiQueryCount;
-      response = await gapi.client.request({
-        path: 'https://www.googleapis.com/drive/v3/files',
-        params: {
-          spaces: 'drive',
-          q: q,
-          fields: 'nextPageToken,files(id,name,parents)',
-          orderBy: orderBy,
-          pageSize: pageSize,
-          pageToken: pageToken,
-        },
-      });
-    }
-
     if (response.error !== undefined) {
       if (response.error.errors !== undefined && response.error.errors[0].location === 'pageToken') {
         throw new GapiPageTokenError(response.error.errors[0].message);
@@ -413,9 +361,28 @@ class _GapiWrapper {
       throw new GapiError(response.error.errors[0].message);
     }
     
-    this.rpcCache.set(cacheKey, response, _GapiWrapper._LISTING_CACHE_CATEGORY);
-    var files = response.result.files;
-    
+    return {files: response.result.files, nextPageToken: response.result.nextPageToken};
+  }
+  
+  _makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken) {
+    return this._makeCacheKeyPrefixForAuth() + `listFiles,${q},${orderBy},${pageSize},${pageToken}`;
+  }
+
+  async listFiles(q, orderBy, pageSize, pageToken) {
+    let results;
+
+    const cacheKey = this._makeCacheKeyForListFiles(q, orderBy, pageSize, pageToken);
+    const cached = this.rpcCache.get(cacheKey);
+    if (cached !== null) {
+      // TODO: protect from modification by client.
+      results = cached;
+    } else {
+      results = await this._rawListFiles(q, orderBy, pageSize, pageToken);
+      this.rpcCache.set(cacheKey, results, _GapiWrapper._LISTING_CACHE_CATEGORY);
+
+    }
+
+    const files = results.files;
     // We will only respect the first parent of each file.
     var parents = new Set(
       files
@@ -438,7 +405,7 @@ class _GapiWrapper {
       return fileWithPath;
     });
     
-    return [filesWithPaths, response.result.nextPageToken];
+    return [filesWithPaths, results.nextPageToken];
   }
 
   _makeCacheKeyForGetFileContents(fileId) {
