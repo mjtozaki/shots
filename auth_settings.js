@@ -10,14 +10,22 @@ const required = value => (value || typeof value === 'number' ? undefined : 'Req
 const renderField = ({
   input,
   label,
+  stateValue,
   type,
   meta: {touched, error},
 }) => {
+  const checkmark = img({
+    src: 'https://cdnjs.cloudflare.com/ajax/libs/ionicons/4.5.6/collection/icon/svg/md-checkmark.svg',
+    style: {
+      width: '.75vw',
+    },
+  });
   return div([
     rhh.label(label),
     div([
       rhh.input('.screen-width-text-input', {...input, placeholder: label, type: type}),
       ...((touched && error) ? [span(error)] : []),
+      ...((stateValue === input.value) ? [checkmark] : []),
     ]),
   ]);
 };
@@ -35,21 +43,24 @@ class AuthSettings extends React.Component {
           component: renderField,
           key: 'clientId',
           type: 'text',
-          validate: required}),
+          validate: required,
+          stateValue: this.props.auth.clientId}),
         h(Field, {
           name: 'clientSecret',
           label: 'Client Secret',
           component: renderField,
           key: 'clientSecret',
           type: 'text',
-          validate: required}),
+          validate: required,
+          stateValue: this.props.auth.clientSecret}),
         h(Field, {
           name: 'refreshToken',
           label: 'Refresh Token',
           component: renderField,
           key: 'refreshToken',
           type: 'text',
-          validate: required}),
+          validate: required,
+          stateValue: this.props.auth.refreshToken}),
         button({type: 'submit', disabled: submitting, key: 'submit'}, "Set"),
       ]),
       button({onClick: onPurge, key: 'purge'}, 'Purge Auth'),

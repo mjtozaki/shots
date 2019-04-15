@@ -9,6 +9,7 @@ const form = rhh.form;
 const h = rhh.h;
 const h2 = rhh.h2;
 const h3 = rhh.h3;
+const img = rhh.img;
 const input = rhh.input;
 const label = rhh.label;
 const span = rhh.span;
