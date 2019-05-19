@@ -23,11 +23,12 @@ class ShotCodec {
     var espressoTemperatureBasket = TclCodec.tclListToNumberArray(attrs.get('espresso_temperature_basket'));
     var espressoTemperatureMix = TclCodec.tclListToNumberArray(attrs.get('espresso_temperature_mix'));
     
-    var numPoints = espressoElapsed.length;
-    if (![espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
-        .every(sequence => sequence.length == numPoints)) {
-      throw ShotSyntaxError("Number of data points do not match across all dimensions.");
-    }
+    let numPoints =
+      [espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
+        .reduce((minPoints, points) => Math.min(minPoints, points.length), espressoElapsed.length);
+    // Truncate.
+    [espressoElapsed, espressoPressure, espressoWeight, espressoFlow, espressoFlowWeight, espressoTemperatureBasket, espressoTemperatureMix]
+        . forEach(sequence => sequence.splice(numPoints));
 
     let shotData = {
       timestamp: new Date(Number(attrs.get('clock') * S_TO_MS)),
